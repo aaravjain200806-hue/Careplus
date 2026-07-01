@@ -1,0 +1,120 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 210 40% 98%;
+    --foreground: 222 47% 11%;
+    
+    --card: 0 0% 100%;
+    --card-foreground: 222 47% 11%;
+    
+    --popover: 0 0% 100%;
+    --popover-foreground: 222 47% 11%;
+    
+    --primary: 168 76% 36%;
+    --primary-foreground: 0 0% 100%;
+    --primary-glow: 168 76% 55%;
+    
+    --secondary: 226 70% 96%;
+    --secondary-foreground: 226 70% 36%;
+    
+    --muted: 210 40% 96%;
+    --muted-foreground: 215.4 16.3% 46.9%;
+    
+    --accent: 226 70% 40%;
+    --accent-foreground: 0 0% 100%;
+    
+    --destructive: 350 84% 55%;
+    --destructive-foreground: 0 0% 100%;
+    
+    --border: 214.3 31.8% 91.4%;
+    --input: 214.3 31.8% 91.4%;
+    --ring: 168 76% 36%;
+    
+    --emergency: 350 84% 55%;
+    --emergency-foreground: 0 0% 100%;
+    
+    --success: 142 71% 45%;
+    --success-foreground: 0 0% 100%;
+    
+    --gradient-medical: linear-gradient(135deg, hsl(168 76% 36%), hsl(226 70% 40%));
+    --gradient-hero: linear-gradient(180deg, hsl(168 76% 36% / .06), hsl(226 70% 40% / .02));
+    --shadow-medical: 0 8px 30px hsl(168 76% 36% / .06), 0 4px 12px hsl(226 70% 40% / .04);
+    --shadow-elevated: 0 20px 40px hsl(222 47% 11% / .06);
+    --radius: 0.75rem;
+  }
+
+  .dark {
+    --background: 222 47% 5%;
+    --foreground: 210 40% 98%;
+    
+    --card: 222 47% 7%;
+    --card-foreground: 210 40% 98%;
+    
+    --popover: 222 47% 7%;
+    --popover-foreground: 210 40% 98%;
+    
+    --primary: 168 76% 45%;
+    --primary-foreground: 222 47% 5%;
+    --primary-glow: 168 76% 65%;
+    
+    --secondary: 226 40% 15%;
+    --secondary-foreground: 226 70% 75%;
+    
+    --muted: 222 47% 9%;
+    --muted-foreground: 215 20.2% 65.1%;
+    
+    --accent: 226 70% 55%;
+    --accent-foreground: 210 40% 98%;
+    
+    --destructive: 350 84% 55%;
+    --destructive-foreground: 0 0% 100%;
+    
+    --border: 222 47% 13%;
+    --input: 222 47% 13%;
+    --ring: 168 76% 45%;
+    
+    --emergency: 350 84% 55%;
+    --emergency-foreground: 0 0% 100%;
+    
+    --success: 142 71% 45%;
+    --success-foreground: 0 0% 100%;
+    
+    --gradient-medical: linear-gradient(135deg, hsl(168 76% 45%), hsl(226 70% 55%));
+    --gradient-hero: linear-gradient(180deg, hsl(168 76% 45% / .08), hsl(226 70% 55% / .02));
+    --shadow-medical: 0 8px 30px hsl(168 76% 45% / .15), 0 4px 12px hsl(226 70% 55% / .1);
+    --shadow-elevated: 0 20px 40px hsl(0 0% 0% / .4);
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground transition-colors duration-300;
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+  }
+}
+
+/* Custom Utilities for smooth transitions and inputs */
+input, textarea, select {
+  @apply focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all;
+}
+
+/* Custom Scrollbar for premium aesthetic */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  @apply bg-background;
+}
+
+::-webkit-scrollbar-thumb {
+  @apply bg-primary/20 rounded-full hover:bg-primary/45 transition-colors;
+}
+

@@ -1,0 +1,768 @@
+[
+  {
+    "id": 1,
+    "name": "All India Institute of Medical Sciences (AIIMS)",
+    "address": "Ansari Nagar, New Delhi - 110029",
+    "phone": "+91 11 26588500",
+    "distance": "3.1 km",
+    "lat": 28.5672,
+    "lng": 77.21,
+    "specialties": [
+      "Cardiology",
+      "Neurology",
+      "Oncology",
+      "Urology",
+      "Emergency"
+    ],
+    "verified": true,
+    "hfrId": "91-1000-0000-00",
+    "ownership": "government",
+    "facilityType": "Multi-Specialty Hospital"
+  },
+  {
+    "id": 2,
+    "name": "Safdarjung Hospital",
+    "address": "Ansari Nagar East, New Delhi - 110029",
+    "phone": "+91 11 26730000",
+    "distance": "6.0 km",
+    "lat": 28.5678,
+    "lng": 77.2056,
+    "specialties": [
+      "General Medicine",
+      "Pediatrics",
+      "Orthopedics",
+      "Dermatology"
+    ],
+    "verified": true,
+    "hfrId": "91-1000-0042-39",
+    "ownership": "government",
+    "facilityType": "General Hospital"
+  },
+  {
+    "id": 3,
+    "name": "Saket General Clinic",
+    "address": "Press Enclave Road, Saket, New Delhi - 110017",
+    "phone": "+91 11 26510001",
+    "distance": "1.0 km",
+    "lat": 28.528,
+    "lng": 77.21,
+    "specialties": [
+      "General Medicine"
+    ],
+    "verified": true,
+    "hfrId": "91-1000-0084-78",
+    "ownership": "private",
+    "facilityType": "Clinic"
+  },
+  {
+    "id": 4,
+    "name": "Malviya Nagar Dispensary",
+    "address": "Malviya Nagar, New Delhi - 110017",
+    "phone": "+91 11 26520002",
+    "distance": "3.7 km",
+    "lat": 28.53,
+    "lng": 77.205,
+    "specialties": [
+      "General Medicine"
+    ],
+    "verified": true,
+    "hfrId": "91-1000-0127-17",
+    "ownership": "government",
+    "facilityType": "Dispensary"
+  },
+  {
+    "id": 5,
+    "name": "Max Super Speciality Hospital",
+    "address": "Saket, Press Enclave Road, New Delhi - 110017",
+    "phone": "+91 11 26515050",
+    "distance": "6.2 km",
+    "lat": 28.5284,
+    "lng": 77.2115,
+    "specialties": [
+      "Cardiology",
+      "Neurology",
+      "Gastroenterology",
+      "Nephrology"
+    ],
+    "verified": true,
+    "hfrId": "91-1000-0169-56",
+    "ownership": "private",
+    "facilityType": "Super-Specialty Hospital"
+  },
+  {
+    "id": 6,
+    "name": "Sir Ganga Ram Hospital",
+    "address": "Rajinder Nagar, New Delhi - 110060",
+    "phone": "+91 11 25750000",
+    "distance": "4.0 km",
+    "lat": 28.6385,
+    "lng": 77.1896,
+    "specialties": [
+      "Nephrology",
+      "Gastroenterology",
+      "Gynecology",
+      "Pediatrics"
+    ],
+    "verified": true,
+    "hfrId": "91-1000-0211-95",
+    "ownership": "private",
+    "facilityType": "Multi-Specialty Hospital"
+  },
+  {
+    "id": 7,
+    "name": "Fortis Flt. Lt. Rajan Dhall Hospital",
+    "address": "Vasant Kunj, Sector B, New Delhi - 110070",
+    "phone": "+91 11 4277 6222",
+    "distance": "3.1 km",
+    "lat": 28.5255,
+    "lng": 77.161,
+    "specialties": [
+      "Orthopedics",
+      "Urology",
+      "Cardiology"
+    ],
+    "verified": true,
+    "hfrId": "91-1000-0254-34",
+    "ownership": "private",
+    "facilityType": "Multi-Specialty Hospital"
+  },
+  {
+    "id": 8,
+    "name": "Sawai Man Singh Hospital (SMS Hospital)",
+    "address": "J.L.N. Marg, Jaipur, Rajasthan - 302004",
+    "phone": "+91 141 2560291",
+    "distance": "6.6 km",
+    "lat": 26.905641,
+    "lng": 75.815549,
+    "specialties": [
+      "Cardiology",
+      "Neurology",
+      "Pediatrics",
+      "Emergency"
+    ],
+    "verified": true,
+    "hfrId": "91-1000-0296-73",
+    "ownership": "government",
+    "facilityType": "Multi-Specialty Hospital"
+  },
+  {
+    "id": 9,
+    "name": "Jaipur Wellness Clinic",
+    "address": "C-Scheme, Ashok Marg, Jaipur - 302001",
+    "phone": "+91 141 2365544",
+    "distance": "7.0 km",
+    "lat": 26.912,
+    "lng": 75.795,
+    "specialties": [
+      "General Medicine"
+    ],
+    "verified": true,
+    "hfrId": "91-1000-0339-12",
+    "ownership": "private",
+    "facilityType": "Clinic"
+  },
+  {
+    "id": 10,
+    "name": "Apex Hospital Clinic",
+    "address": "Malviya Nagar, Sector 1, Jaipur - 302017",
+    "phone": "+91 141 5102102",
+    "distance": "6.1 km",
+    "lat": 26.8532,
+    "lng": 75.8092,
+    "specialties": [
+      "General Medicine"
+    ],
+    "verified": true,
+    "hfrId": "91-1000-0381-51",
+    "ownership": "private",
+    "facilityType": "Clinic"
+  },
+  {
+    "id": 11,
+    "name": "Fortis Escorts Hospital",
+    "address": "Jawahar Lal Nehru Marg, Malviya Nagar, Jaipur - 302017",
+    "phone": "+91 858 8830402",
+    "distance": "7.2 km",
+    "lat": 26.8514,
+    "lng": 75.8103,
+    "specialties": [
+      "Cardiology",
+      "Orthopedics",
+      "Oncology"
+    ],
+    "verified": true,
+    "hfrId": "91-1000-0423-90",
+    "ownership": "private",
+    "facilityType": "Multi-Specialty Hospital"
+  },
+  {
+    "id": 12,
+    "name": "Manipal Hospital Jaipur",
+    "address": "Sector 5, Vidhyadhar Nagar, Jaipur - 302039",
+    "phone": "+91 141 6748000",
+    "distance": "5.2 km",
+    "lat": 26.968871,
+    "lng": 75.773472,
+    "specialties": [
+      "Nephrology",
+      "Gastroenterology",
+      "Urology"
+    ],
+    "verified": true,
+    "hfrId": "91-1000-0466-29",
+    "ownership": "private",
+    "facilityType": "Multi-Specialty Hospital"
+  },
+  {
+    "id": 13,
+    "name": "Eternal Hospital (EHCC)",
+    "address": "Jawahar Circle, Malviya Nagar, Jaipur - 302017",
+    "phone": "+91 141 5174000",
+    "distance": "7.1 km",
+    "lat": 26.8467,
+    "lng": 75.8119,
+    "specialties": [
+      "Cardiology",
+      "Gynecology",
+      "Pulmonology"
+    ],
+    "verified": true,
+    "hfrId": "91-1000-0508-68",
+    "ownership": "private",
+    "facilityType": "Super-Specialty Hospital"
+  },
+  {
+    "id": 14,
+    "name": "Apex Hospital Jaipur",
+    "address": "Malviya Nagar, Sector 1, Jaipur - 302017",
+    "phone": "+91 141 5102102",
+    "distance": "3.8 km",
+    "lat": 26.8532,
+    "lng": 75.8092,
+    "specialties": [
+      "Pediatrics",
+      "Dermatology",
+      "General Medicine"
+    ],
+    "verified": true,
+    "hfrId": "91-1000-0551-07",
+    "ownership": "private",
+    "facilityType": "General Hospital"
+  },
+  {
+    "id": 15,
+    "name": "CK Birla Hospital (RBM Hospital)",
+    "address": "RBM Group Hospitals, Gopalpura Bypass, Jaipur - 302018",
+    "phone": "+91 141 3044200",
+    "distance": "6.2 km",
+    "lat": 26.8498,
+    "lng": 75.8156,
+    "specialties": [
+      "Orthopedics",
+      "Obstetrics",
+      "Pediatrics"
+    ],
+    "verified": true,
+    "hfrId": "91-1000-0593-46",
+    "ownership": "private",
+    "facilityType": "Multi-Specialty Hospital"
+  },
+  {
+    "id": 16,
+    "name": "Narayana Multispeciality Hospital",
+    "address": "Sector 28, Pratap Nagar, Jaipur - 302033",
+    "phone": "+91 141 6666999",
+    "distance": "3.0 km",
+    "lat": 26.8702,
+    "lng": 75.7756,
+    "specialties": [
+      "Cardiology",
+      "Neurology",
+      "Oncology"
+    ],
+    "verified": true,
+    "hfrId": "91-1000-0635-85",
+    "ownership": "private",
+    "facilityType": "Multi-Specialty Hospital"
+  },
+  {
+    "id": 17,
+    "name": "Santokba Durlabhji Memorial Hospital (SDMH)",
+    "address": "Bhawani Singh Road, Jaipur - 302015",
+    "phone": "+91 141 2566251",
+    "distance": "2.2 km",
+    "lat": 26.9021,
+    "lng": 75.7889,
+    "specialties": [
+      "General Surgery",
+      "Urology",
+      "Pediatrics"
+    ],
+    "verified": true,
+    "hfrId": "91-1000-0678-24",
+    "ownership": "private",
+    "facilityType": "Multi-Specialty Hospital"
+  },
+  {
+    "id": 18,
+    "name": "JK Lon Pediatric Hospital",
+    "address": "Gopalbari, Jaipur - 302001",
+    "phone": "+91 141 2566666",
+    "distance": "2.9 km",
+    "lat": 26.9187,
+    "lng": 75.7856,
+    "specialties": [
+      "Pediatrics",
+      "Neonatology"
+    ],
+    "verified": true,
+    "hfrId": "91-1000-0720-63",
+    "ownership": "government",
+    "facilityType": "Specialty Hospital"
+  },
+  {
+    "id": 19,
+    "name": "Metro Mas Hospital",
+    "address": "Shipra Path, Mansarovar, Jaipur - 302020",
+    "phone": "+91 141 2786000",
+    "distance": "5.7 km",
+    "lat": 26.8624,
+    "lng": 75.7567,
+    "specialties": [
+      "Cardiology",
+      "Oncology",
+      "Internal Medicine"
+    ],
+    "verified": true,
+    "hfrId": "91-1000-0763-02",
+    "ownership": "private",
+    "facilityType": "Super-Specialty Hospital"
+  },
+  {
+    "id": 20,
+    "name": "Bhandari Hospital & Research Centre",
+    "address": "Gopalpura Bypass, Jaipur - 302018",
+    "phone": "+91 141 2703851",
+    "distance": "3.6 km",
+    "lat": 26.855,
+    "lng": 75.79,
+    "specialties": [
+      "General Surgery",
+      "Gastroenterology",
+      "Pediatrics"
+    ],
+    "verified": true,
+    "hfrId": "91-1000-0805-41",
+    "ownership": "private",
+    "facilityType": "General Hospital"
+  },
+  {
+    "id": 21,
+    "name": "Mahatma Gandhi Medical College & Hospital",
+    "address": "Sitapura Industrial Area, Tonk Road, Jaipur - 302022",
+    "phone": "+91 141 2771777",
+    "distance": "4.2 km",
+    "lat": 26.782,
+    "lng": 75.86,
+    "specialties": [
+      "General Medicine",
+      "Oncology",
+      "Neurology",
+      "Emergency"
+    ],
+    "verified": true,
+    "hfrId": "91-1000-0847-80",
+    "ownership": "private",
+    "facilityType": "Medical College Hospital"
+  },
+  {
+    "id": 22,
+    "name": "Jaipur Ortho & Joint Reconstruction Clinic",
+    "address": "Bhawani Singh Road, Jaipur - 302015",
+    "phone": "+91 141 2561122",
+    "distance": "4.2 km",
+    "lat": 26.903,
+    "lng": 75.7895,
+    "specialties": [
+      "Orthopedics"
+    ],
+    "verified": true,
+    "hfrId": "91-1000-0890-19",
+    "ownership": "private",
+    "facilityType": "Clinic"
+  },
+  {
+    "id": 23,
+    "name": "Jaipur Maternity & Women Care Center",
+    "address": "Jawahar Nagar, Sector 4, Jaipur - 302004",
+    "phone": "+91 141 2651133",
+    "distance": "3.3 km",
+    "lat": 26.914,
+    "lng": 75.7915,
+    "specialties": [
+      "Gynecology",
+      "Obstetrics"
+    ],
+    "verified": true,
+    "hfrId": "91-1000-0932-58",
+    "ownership": "private",
+    "facilityType": "Clinic"
+  },
+  {
+    "id": 24,
+    "name": "Dausa District Hospital",
+    "address": "Agra Road, Dausa, Rajasthan - 303303",
+    "phone": "+91 1427 220033",
+    "distance": "5.7 km",
+    "lat": 26.8902,
+    "lng": 76.335,
+    "specialties": [
+      "Emergency",
+      "General Surgery",
+      "Pediatrics",
+      "Orthopedics"
+    ],
+    "verified": true,
+    "hfrId": "91-1000-0974-97",
+    "ownership": "government",
+    "facilityType": "District Hospital"
+  },
+  {
+    "id": 25,
+    "name": "Bandikui Community Health Center",
+    "address": "Bandikui, Dausa, Rajasthan - 303313",
+    "phone": "+91 1427 240055",
+    "distance": "1.4 km",
+    "lat": 27.051,
+    "lng": 76.57,
+    "specialties": [
+      "General Medicine",
+      "Pediatrics",
+      "Gynecology"
+    ],
+    "verified": true,
+    "hfrId": "91-1000-1017-36",
+    "ownership": "government",
+    "facilityType": "Community Health Center"
+  },
+  {
+    "id": 26,
+    "name": "Lalsot Primary Health Center",
+    "address": "Lalsot, Dausa, Rajasthan - 303503",
+    "phone": "+91 1427 260022",
+    "distance": "3.1 km",
+    "lat": 26.565,
+    "lng": 76.328,
+    "specialties": [
+      "General Medicine"
+    ],
+    "verified": true,
+    "hfrId": "91-1000-1059-75",
+    "ownership": "government",
+    "facilityType": "Primary Health Center"
+  },
+  {
+    "id": 27,
+    "name": "Dausa Family Care Clinic",
+    "address": "Gandhi Nagar, Dausa, Rajasthan - 303303",
+    "phone": "+91 1427 225588",
+    "distance": "2.8 km",
+    "lat": 26.895,
+    "lng": 76.341,
+    "specialties": [
+      "General Medicine",
+      "Dentistry"
+    ],
+    "verified": true,
+    "hfrId": "91-1000-1102-14",
+    "ownership": "private",
+    "facilityType": "Clinic"
+  },
+  {
+    "id": 28,
+    "name": "Dausa Homoeopathic Dispensary",
+    "address": "Bus Stand Road, Dausa, Rajasthan - 303303",
+    "phone": "+91 1427 226699",
+    "distance": "6.9 km",
+    "lat": 26.892,
+    "lng": 76.331,
+    "specialties": [
+      "Homoeopathy"
+    ],
+    "verified": true,
+    "hfrId": "91-1000-1144-53",
+    "ownership": "government",
+    "facilityType": "Dispensary"
+  },
+  {
+    "id": 29,
+    "name": "Dausa Maternity & Children Hospital",
+    "address": "Somnath Nagar, Dausa, Rajasthan - 303303",
+    "phone": "+91 1427 221234",
+    "distance": "2.4 km",
+    "lat": 26.885,
+    "lng": 76.339,
+    "specialties": [
+      "Pediatrics",
+      "Gynecology",
+      "Obstetrics"
+    ],
+    "verified": true,
+    "hfrId": "91-1000-1186-92",
+    "ownership": "private",
+    "facilityType": "Specialty Hospital"
+  },
+  {
+    "id": 30,
+    "name": "Sikrai Community Health Center",
+    "address": "Sikrai, Dausa, Rajasthan - 303304",
+    "phone": "+91 1427 280011",
+    "distance": "2.0 km",
+    "lat": 26.931,
+    "lng": 76.582,
+    "specialties": [
+      "General Medicine",
+      "Pediatrics",
+      "Emergency"
+    ],
+    "verified": true,
+    "hfrId": "91-1000-1229-31",
+    "ownership": "government",
+    "facilityType": "Community Health Center"
+  },
+  {
+    "id": 31,
+    "name": "Mahwa Sub-Divisional Hospital",
+    "address": "Mahwa, Dausa, Rajasthan - 321608",
+    "phone": "+91 1427 250044",
+    "distance": "5.8 km",
+    "lat": 27.042,
+    "lng": 76.901,
+    "specialties": [
+      "Emergency",
+      "General Surgery",
+      "Orthopedics",
+      "Gynecology"
+    ],
+    "verified": true,
+    "hfrId": "91-1000-1271-70",
+    "ownership": "government",
+    "facilityType": "Sub-Divisional Hospital"
+  },
+  {
+    "id": 32,
+    "name": "Gupta Eye & Dental Clinic",
+    "address": "Agra Road, Opp. Bus Stand, Dausa - 303303",
+    "phone": "+91 1427 228811",
+    "distance": "4.6 km",
+    "lat": 26.8915,
+    "lng": 76.3345,
+    "specialties": [
+      "Ophthalmology",
+      "Dentistry"
+    ],
+    "verified": true,
+    "hfrId": "91-1000-1314-09",
+    "ownership": "private",
+    "facilityType": "Clinic"
+  },
+  {
+    "id": 33,
+    "name": "Khandelwal General Hospital",
+    "address": "Sainthal Road, Dausa - 303303",
+    "phone": "+91 1427 223344",
+    "distance": "1.2 km",
+    "lat": 26.898,
+    "lng": 76.33,
+    "specialties": [
+      "General Medicine",
+      "General Surgery",
+      "Pediatrics"
+    ],
+    "verified": true,
+    "hfrId": "91-1000-1356-48",
+    "ownership": "private",
+    "facilityType": "General Hospital"
+  },
+  {
+    "id": 34,
+    "name": "Dausa Heart & Critical Care Center",
+    "address": "Collectorate Road, Dausa - 303303",
+    "phone": "+91 1427 229988",
+    "distance": "3.5 km",
+    "lat": 26.889,
+    "lng": 76.326,
+    "specialties": [
+      "Cardiology",
+      "Emergency",
+      "Internal Medicine"
+    ],
+    "verified": true,
+    "hfrId": "91-1000-1398-87",
+    "ownership": "private",
+    "facilityType": "Specialty Hospital"
+  },
+  {
+    "id": 35,
+    "name": "Sainthal Primary Health Center",
+    "address": "Sainthal, Dausa, Rajasthan - 303507",
+    "phone": "+91 1427 270055",
+    "distance": "4.8 km",
+    "lat": 27.025,
+    "lng": 76.28,
+    "specialties": [
+      "General Medicine"
+    ],
+    "verified": true,
+    "hfrId": "91-1000-1441-26",
+    "ownership": "government",
+    "facilityType": "Primary Health Center"
+  },
+  {
+    "id": 36,
+    "name": "Shayama Devi Memorial Hospital",
+    "address": "Sainthal Road, Dausa, Rajasthan - 303303",
+    "phone": "+91 1427 224455",
+    "distance": "1.1 km",
+    "lat": 26.8995,
+    "lng": 76.3295,
+    "specialties": [
+      "General Medicine",
+      "Pediatrics",
+      "Gynecology"
+    ],
+    "verified": true,
+    "hfrId": "91-1000-1483-65",
+    "ownership": "private",
+    "facilityType": "General Hospital"
+  },
+  {
+    "id": 37,
+    "name": "Kokilaben Dhirubhai Ambani Hospital",
+    "address": "Rao Saheb Achutrao Patwardhan Marg, Andheri West, Mumbai - 400053",
+    "phone": "+91 22 42699999",
+    "distance": "5.0 km",
+    "lat": 19.1312,
+    "lng": 72.8252,
+    "specialties": [
+      "Cardiology",
+      "Neurology",
+      "Pediatrics",
+      "Oncology",
+      "Orthopedics"
+    ],
+    "verified": true,
+    "hfrId": "91-1000-1526-04",
+    "ownership": "private",
+    "facilityType": "Super-Specialty Hospital"
+  },
+  {
+    "id": 38,
+    "name": "King Edward Memorial (KEM) Hospital",
+    "address": "Acharya Donde Marg, Parel, Mumbai - 400012",
+    "phone": "+91 22 24107000",
+    "distance": "3.5 km",
+    "lat": 19.0025,
+    "lng": 72.8423,
+    "specialties": [
+      "General Medicine",
+      "Pediatrics",
+      "Gynecology",
+      "Urology"
+    ],
+    "verified": true,
+    "hfrId": "91-1000-1568-43",
+    "ownership": "government",
+    "facilityType": "Multi-Specialty Hospital"
+  },
+  {
+    "id": 39,
+    "name": "Andheri Family Dispensary",
+    "address": "S.V. Road, Andheri, Mumbai - 400053",
+    "phone": "+91 22 26230005",
+    "distance": "5.8 km",
+    "lat": 19.12,
+    "lng": 72.83,
+    "specialties": [
+      "General Medicine"
+    ],
+    "verified": true,
+    "hfrId": "91-1000-1610-82",
+    "ownership": "private",
+    "facilityType": "Dispensary"
+  },
+  {
+    "id": 40,
+    "name": "Patna Medical College Hospital (PMCH)",
+    "address": "Ashok Rajpath, Patna, Bihar - 800004",
+    "phone": "+91 612 2300344",
+    "distance": "3.5 km",
+    "lat": 25.62,
+    "lng": 85.15,
+    "specialties": [
+      "General Medicine",
+      "General Surgery",
+      "Pediatrics",
+      "Emergency"
+    ],
+    "verified": true,
+    "hfrId": "91-1000-1653-21",
+    "ownership": "government",
+    "facilityType": "Medical College Hospital"
+  },
+  {
+    "id": 41,
+    "name": "Sanjay Gandhi Postgraduate Institute of Medical Sciences (SGPGIMS)",
+    "address": "Raebareli Road, Lucknow, Uttar Pradesh - 226014",
+    "phone": "+91 522 2668700",
+    "distance": "6.1 km",
+    "lat": 26.79,
+    "lng": 80.94,
+    "specialties": [
+      "Cardiology",
+      "Nephrology",
+      "Endocrinology",
+      "Neurology"
+    ],
+    "verified": true,
+    "hfrId": "91-1000-1695-60",
+    "ownership": "government",
+    "facilityType": "Super-Specialty Hospital"
+  },
+  {
+    "id": 42,
+    "name": "Bhopal Memorial Hospital & Research Centre (BMHRC)",
+    "address": "Karond, Bhopal, Madhya Pradesh - 462038",
+    "phone": "+91 755 2742212",
+    "distance": "4.3 km",
+    "lat": 23.3,
+    "lng": 77.41,
+    "specialties": [
+      "Cardiology",
+      "Pulmonology",
+      "Nephrology"
+    ],
+    "verified": true,
+    "hfrId": "91-1000-1737-99",
+    "ownership": "government",
+    "facilityType": "Multi-Specialty Hospital"
+  },
+  {
+    "id": 43,
+    "name": "Government Medical College, Ernakulam",
+    "address": "Kalamassery, Kochi, Kerala - 683503",
+    "phone": "+91 484 2573022",
+    "distance": "4.7 km",
+    "lat": 10.06,
+    "lng": 76.32,
+    "specialties": [
+      "General Medicine",
+      "Pediatrics",
+      "Emergency"
+    ],
+    "verified": true,
+    "hfrId": "91-1000-1780-38",
+    "ownership": "government",
+    "facilityType": "Medical College Hospital"
+  }
+]
