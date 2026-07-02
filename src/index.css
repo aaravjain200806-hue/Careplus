@@ -118,3 +118,17 @@ input, textarea, select {
   @apply bg-primary/20 rounded-full hover:bg-primary/45 transition-colors;
 }
 
+/* Touch scrolling helper with hardware acceleration for mobile lists */
+.scroll-touch-accelerated {
+  -webkit-overflow-scrolling: touch;
+  will-change: transform;
+}
+
+/* Hide scrollbars but keep functionality */
+.scrollbar-none::-webkit-scrollbar {
+  display: none;
+}
+.scrollbar-none {
+  -ms-overflow-style: none;  /* IE and Edge */
+  scrollbar-width: none;  /* Firefox */
+}

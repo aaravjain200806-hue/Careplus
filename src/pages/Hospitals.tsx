@@ -1,7 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useAppContext } from '../context/AppContext';
 import { useLanguage } from '../context/LanguageContext';
-import { Search, Hospital as HospitalIcon, Phone, MapPin, Navigation, Plus, Sparkles, X, HeartPulse, ShieldAlert, Star, Compass } from 'lucide-react';
+import { Search, Hospital as HospitalIcon, Phone, MapPin, Navigation, Plus, Sparkles, X, HeartPulse, ShieldAlert, Star, Compass, Sliders } from 'lucide-react';
+import { useDebounce } from '../hooks/useDebounce';
+import { InteractiveMap } from '../components/InteractiveMap';
 
 export const Hospitals: React.FC = () => {
   const { t } = useLanguage();
@@ -16,6 +18,14 @@ export const Hospitals: React.FC = () => {
   const [expandedHospId, setExpandedHospId] = useState<number | null>(null);
   const [searchRadius, setSearchRadius] = useState<number>(5000); // in km, default 5000 (Pan-India)
   const [hoveredClusterIndex, setHoveredClusterIndex] = useState<number | null>(null);
+
+  // Mobile layout state variables
+  const [mobileTab, setMobileTab] = useState<'map' | 'list'>('list');
+  const [filterDrawerOpen, setFilterDrawerOpen] = useState(false);
+
+  // Debounced search and radius values to prevent rapid re-renders/lag
+  const debouncedSearch = useDebounce(search, 250);
+  const debouncedSearchRadius = useDebounce(searchRadius, 250);
 
   // Register clinic modal states
   const [modalOpen, setModalOpen] = useState(false);
@@ -132,9 +142,8 @@ export const Hospitals: React.FC = () => {
     return 6371 * c; 
   };
 
-  // Map Geolocation coordinates boundaries to 0-100% SVG coordinates dynamically
-  // based on the currently filtered list of hospitals across India
-  const mapCoordinates = (lat: number, lng: number) => {
+  // Memoize bounds calculation to avoid O(N^2) calculations during maps rendering
+  const bounds = useMemo(() => {
     let minLat = 8.0; // India bounds fallback
     let maxLat = 37.0;
     let minLng = 68.0;
@@ -159,7 +168,12 @@ export const Hospitals: React.FC = () => {
         maxLng = maxG + lngPad;
       }
     }
+    return { minLat, maxLat, minLng, maxLng };
+  }, [list]);
 
+  // Memoize map coordinates mapping function
+  const mapCoordinates = useCallback((lat: number, lng: number) => {
+    const { minLat, maxLat, minLng, maxLng } = bounds;
     const latRange = maxLat - minLat;
     const lngRange = maxLng - minLng;
 
@@ -170,14 +184,14 @@ export const Hospitals: React.FC = () => {
       x: Math.max(8, Math.min(92, x)), 
       y: Math.max(8, Math.min(92, y)) 
     };
-  };
+  }, [bounds]);
 
   // Process and filter list with Google Places & HFR geospatial routing engine simulation
   useEffect(() => {
     setIsSearchingBackend(true);
     
     // Construct dynamic API query parameters matching our geospatial search interface
-    const queryParams = `lat=${userCoords?.lat?.toFixed(5) || '21.14580'}&lng=${userCoords?.lng?.toFixed(5) || '79.08820'}&radius=${searchRadius === 5000 ? '5000' : searchRadius}&keyword=${encodeURIComponent(selectedSpecialty)}`;
+    const queryParams = `lat=${userCoords?.lat?.toFixed(5) || '21.14580'}&lng=${userCoords?.lng?.toFixed(5) || '79.08820'}&radius=${debouncedSearchRadius === 5000 ? '5000' : debouncedSearchRadius}&keyword=${encodeURIComponent(selectedSpecialty)}`;
     setBackendQueryInfo(queryParams);
 
     // Simulate geospatial lookup latency from Google Places API / HFR Registry backend
@@ -192,10 +206,10 @@ export const Hospitals: React.FC = () => {
       });
 
       // Viewport Radius filter
-      if (userCoords && searchRadius < 5000) {
+      if (userCoords && debouncedSearchRadius < 5000) {
         processed = processed.filter(h => {
           const d = getDistance(userCoords.lat, userCoords.lng, h.lat, h.lng);
-          return d <= searchRadius;
+          return d <= debouncedSearchRadius;
         });
       }
 
@@ -208,8 +222,8 @@ export const Hospitals: React.FC = () => {
 
       // Search query filter
       processed = processed.filter(h =>
-        h.name.toLowerCase().includes(search.toLowerCase()) ||
-        h.address.toLowerCase().includes(search.toLowerCase())
+        h.name.toLowerCase().includes(debouncedSearch.toLowerCase()) ||
+        h.address.toLowerCase().includes(debouncedSearch.toLowerCase())
       );
 
       // Sort by proximity
@@ -220,7 +234,7 @@ export const Hospitals: React.FC = () => {
     }, 250); // Fast 250ms premium transition delay
 
     return () => clearTimeout(timeoutId);
-  }, [hospitals, search, selectedSpecialty, userCoords, searchRadius]);
+  }, [hospitals, debouncedSearch, selectedSpecialty, userCoords, debouncedSearchRadius]);
 
   // Compute clusters dynamically on the 100x100 SVG coordinate grid
   const clusters = React.useMemo(() => {
@@ -254,7 +268,7 @@ export const Hospitals: React.FC = () => {
     });
 
     return computedClusters;
-  }, [list]);
+  }, [list, mapCoordinates]);
 
   // Modal handlers
   const handleAddSpecialty = (e: React.FormEvent) => {
@@ -310,13 +324,83 @@ export const Hospitals: React.FC = () => {
           </p>
         </div>
 
-        {/* 2-Column Map & Directory Layout */}
-        <div className="grid lg:grid-cols-12 gap-8">
-          
-          {/* Column 1: Left Specialties & Coordinates filters */}
-          <div className="lg:col-span-3 space-y-6 animate-fade-in">
+        {/* Mobile Navigation bar for Map / List View and Filters */}
+        <div className="lg:hidden flex flex-col gap-3 mb-6">
+          <div className="flex gap-2">
             {/* Search */}
-            <div className="relative">
+            <div className="relative flex-1">
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">
+                <Search className="w-4 h-4" />
+              </span>
+              <input
+                type="text"
+                placeholder="Search by clinic name or city..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="w-full pl-9 pr-3 py-2.5 border rounded-xl text-xs bg-card text-foreground"
+              />
+            </div>
+            <button
+              onClick={() => setFilterDrawerOpen(true)}
+              className="px-4 py-2 bg-gradient-medical text-white font-semibold rounded-xl text-xs flex items-center justify-center gap-1.5 shadow-medical min-h-[48px] cursor-pointer"
+            >
+              <Sliders className="w-4 h-4" />
+              <span>Filters</span>
+            </button>
+          </div>
+          
+          <div className="flex border rounded-xl overflow-hidden p-1 bg-card">
+            <button
+              onClick={() => setMobileTab('list')}
+              className={`flex-1 py-2 text-center text-xs font-bold rounded-lg transition-all ${
+                mobileTab === 'list' 
+                  ? 'bg-primary text-primary-foreground shadow-sm' 
+                  : 'text-muted-foreground hover:bg-muted/40'
+              }`}
+            >
+              List View
+            </button>
+            <button
+              onClick={() => setMobileTab('map')}
+              className={`flex-1 py-2 text-center text-xs font-bold rounded-lg transition-all ${
+                mobileTab === 'map' 
+                  ? 'bg-primary text-primary-foreground shadow-sm' 
+                  : 'text-muted-foreground hover:bg-muted/40'
+              }`}
+            >
+              Map View
+            </button>
+          </div>
+        </div>
+
+        {/* 2-Column Map & Directory Layout */}
+        <div className="grid lg:grid-cols-12 gap-8 relative">
+          
+          {/* Backdrop overlay for mobile filter drawer */}
+          {filterDrawerOpen && (
+            <div 
+              className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40 lg:hidden"
+              onClick={() => setFilterDrawerOpen(false)}
+            />
+          )}
+
+          {/* Column 1: Left Specialties & Coordinates filters (Drawer on mobile, Sidebar on desktop) */}
+          <div className={`fixed inset-y-0 left-0 z-50 w-80 max-w-[85vw] bg-card border-r p-6 overflow-y-auto transition-transform duration-300 ease-in-out lg:relative lg:translate-x-0 lg:w-auto lg:p-0 lg:border-r-0 lg:z-auto lg:bg-transparent lg:col-span-3 space-y-6 ${
+            filterDrawerOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0 lg:block'
+          }`}>
+            {/* Drawer Close Header on Mobile */}
+            <div className="flex justify-between items-center lg:hidden mb-4 border-b pb-3">
+              <span className="font-extrabold text-xs text-foreground uppercase tracking-wider">Filters & Specialties</span>
+              <button 
+                onClick={() => setFilterDrawerOpen(false)}
+                className="p-1 rounded-lg hover:bg-muted text-muted-foreground"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Search (Desktop only) */}
+            <div className="hidden lg:relative lg:block">
               <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">
                 <Search className="w-4 h-4" />
               </span>
@@ -348,7 +432,7 @@ export const Hospitals: React.FC = () => {
               <button
                 onClick={handleGPSLookup}
                 disabled={loadingLocation}
-                className="w-full py-2 bg-gradient-medical text-white font-semibold rounded-lg text-xs shadow-medical hover:opacity-90 transition-all"
+                className="w-full py-3 bg-gradient-medical text-white font-bold rounded-lg text-xs shadow-medical hover:opacity-90 transition-all min-h-[48px]"
               >
                 {loadingLocation ? 'Acquiring GPS...' : 'Sync Device GPS Location'}
               </button>
@@ -387,12 +471,18 @@ export const Hospitals: React.FC = () => {
               <h3 className="font-extrabold text-xs text-foreground uppercase border-b pb-2">
                 Specialty Domains
               </h3>
-              <div className="flex flex-col gap-1 max-h-[300px] overflow-y-auto pr-1 text-xs scrollbar-thin">
+              <div className="flex flex-col gap-1 max-h-[300px] overflow-y-auto pr-1 text-xs scrollbar-thin scroll-touch-accelerated">
                 {specialtiesFilters.map((spec, i) => (
                   <button
                     key={i}
-                    onClick={() => setSelectedSpecialty(spec)}
-                    className={`w-full text-left px-2.5 py-1.5 rounded-lg transition-all font-semibold ${
+                    onClick={() => {
+                      setSelectedSpecialty(spec);
+                      // Auto close drawer on specialty select (mobile experience)
+                      if (window.innerWidth < 1024) {
+                        setFilterDrawerOpen(false);
+                      }
+                    }}
+                    className={`w-full text-left px-2.5 py-2.5 rounded-lg transition-all font-semibold min-h-[40px] flex items-center ${
                       selectedSpecialty === spec
                         ? 'bg-primary text-primary-foreground font-extrabold shadow-sm'
                         : 'text-muted-foreground hover:bg-muted/40'
@@ -406,7 +496,7 @@ export const Hospitals: React.FC = () => {
 
             <button
               onClick={() => setModalOpen(true)}
-              className="w-full py-2.5 border border-primary/20 text-primary bg-primary/5 hover:bg-primary/10 font-bold rounded-xl text-xs flex items-center justify-center gap-1.5"
+              className="w-full py-3 border border-primary/20 text-primary bg-primary/5 hover:bg-primary/10 font-bold rounded-xl text-xs flex items-center justify-center gap-1.5 min-h-[48px]"
             >
               <Plus className="w-4 h-4" />
               <span>Register Hospital/Clinic</span>
@@ -414,7 +504,7 @@ export const Hospitals: React.FC = () => {
           </div>
 
           {/* Column 2: Center Interactive Map Grid */}
-          <div className="lg:col-span-5 space-y-4 animate-fade-in">
+          <div className={`lg:col-span-5 space-y-4 animate-fade-in ${mobileTab === 'map' ? 'block' : 'hidden lg:block'}`}>
             {/* Live API Routing Debug Console Banner */}
             {backendQueryInfo && (
               <div className="bg-card border border-primary/20 px-3.5 py-2.5 rounded-2xl shadow-medical flex items-center justify-between text-[9px] font-mono animate-fade-in transition-all">
@@ -444,205 +534,23 @@ export const Hospitals: React.FC = () => {
                 </span>
               </div>
 
-              {/* Responsive SVG Map */}
-              <div className="relative bg-secondary/15 dark:bg-muted/20 border rounded-2xl h-80 overflow-hidden shadow-inner flex items-center justify-center">
-                {isSearchingBackend && (
-                  <div className="absolute inset-0 bg-background/60 backdrop-blur-[2px] z-20 flex flex-col items-center justify-center gap-2.5 animate-fade-in">
-                    <div className="w-7 h-7 border-[3px] border-primary border-t-transparent rounded-full animate-spin" />
-                    <span className="text-[9px] font-black text-primary font-mono tracking-wider animate-pulse">
-                      GEOSPATIAL LOOKUP ACTIVE...
-                    </span>
-                  </div>
-                )}
-                <svg className="w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none">
-                  {/* Grid Lines for Advanced aesthetic */}
-                  <line x1="20" y1="0" x2="20" y2="100" stroke="currentColor" className="text-border/20" strokeWidth="0.15" strokeDasharray="2,2" />
-                  <line x1="40" y1="0" x2="40" y2="100" stroke="currentColor" className="text-border/20" strokeWidth="0.15" strokeDasharray="2,2" />
-                  <line x1="60" y1="0" x2="60" y2="100" stroke="currentColor" className="text-border/20" strokeWidth="0.15" strokeDasharray="2,2" />
-                  <line x1="80" y1="0" x2="80" y2="100" stroke="currentColor" className="text-border/20" strokeWidth="0.15" strokeDasharray="2,2" />
-                  
-                  <line x1="0" y1="20" x2="100" y2="20" stroke="currentColor" className="text-border/20" strokeWidth="0.15" strokeDasharray="2,2" />
-                  <line x1="0" y1="40" x2="100" y2="40" stroke="currentColor" className="text-border/20" strokeWidth="0.15" strokeDasharray="2,2" />
-                  <line x1="0" y1="60" x2="100" y2="60" stroke="currentColor" className="text-border/20" strokeWidth="0.15" strokeDasharray="2,2" />
-                  <line x1="0" y1="80" x2="100" y2="80" stroke="currentColor" className="text-border/20" strokeWidth="0.15" strokeDasharray="2,2" />
-
-                  {/* Dynamic Map Vector Details based on Zoom/Viewport State */}
-                  {(() => {
-                    // Pan-India National Zones rendering
-                    return (
-                      <g>
-                        {/* Indian Coastline & Major River Simulation */}
-                        <path d="M 10,75 L 30,85 L 50,90 L 70,80 L 80,60 L 90,40" fill="none" stroke="#60a5fa" strokeWidth="1.0" opacity="0.15" />
-                        <path d="M 20,40 Q 40,35 60,38 T 95,25" fill="none" stroke="#60a5fa" strokeWidth="0.8" opacity="0.15" />
-                        
-                        {/* National Zone Labels */}
-                        <text x="50" y="25" className="fill-muted-foreground/30 font-black select-none pointer-events-none" fontSize="3.0" textAnchor="middle" letterSpacing="0.15">NORTH ZONE</text>
-                        <text x="25" y="52" className="fill-muted-foreground/30 font-black select-none pointer-events-none" fontSize="3.0" textAnchor="middle" letterSpacing="0.15">WEST ZONE</text>
-                        <text x="50" y="80" className="fill-muted-foreground/30 font-black select-none pointer-events-none" fontSize="3.0" textAnchor="middle" letterSpacing="0.15">SOUTH ZONE</text>
-                        <text x="75" y="52" className="fill-muted-foreground/30 font-black select-none pointer-events-none" fontSize="3.0" textAnchor="middle" letterSpacing="0.15">EAST ZONE</text>
-                        <text x="50" y="52" className="fill-muted-foreground/30 font-black select-none pointer-events-none" fontSize="3.0" textAnchor="middle" letterSpacing="0.15">CENTRAL ZONE</text>
-                      </g>
-                    );
-                  })()}
-
-                  {/* Plot user device GPS coords if active */}
-                  {userCoords && (() => {
-                    const pos = mapCoordinates(userCoords.lat, userCoords.lng);
-                    return (
-                      <g>
-                        <circle cx={pos.x} cy={pos.y} r="3" className="fill-primary animate-ping opacity-60" />
-                        <circle cx={pos.x} cy={pos.y} r="2.2" className="fill-primary stroke-background" strokeWidth="0.5" />
-                      </g>
-                    );
-                  })()}
-
-                  {/* Plot Clusters / Pins */}
-                  {clusters.map((cluster, ci) => {
-                    const isSingle = cluster.count === 1;
-                    const h = cluster.hospitals[0];
-                    const isHovered = !isSingle 
-                      ? hoveredClusterIndex === ci
-                      : hoveredHospitalId === h.id;
-
-                    if (isSingle) {
-                      return (
-                        <g 
-                          key={`hosp-${h.id}`}
-                          onMouseEnter={() => setHoveredHospitalId(h.id)}
-                          onMouseLeave={() => setHoveredHospitalId(null)}
-                          className="cursor-pointer"
-                        >
-                          <circle 
-                            cx={cluster.x} 
-                            cy={cluster.y} 
-                            r={isHovered ? 5.5 : 3.8} 
-                            className={`fill-red-500 opacity-40 transition-all ${isHovered ? 'animate-pulse' : ''}`} 
-                          />
-                          <circle 
-                            cx={cluster.x} 
-                            cy={cluster.y} 
-                            r={isHovered ? 2.8 : 2.0} 
-                            className="fill-red-500 stroke-background transition-all" 
-                            strokeWidth="0.5"
-                          />
-                          {h.verified && (
-                            <circle
-                              cx={cluster.x + 1.2}
-                              cy={cluster.y - 1.2}
-                              r="1"
-                              className="fill-amber-500 stroke-background"
-                              strokeWidth="0.2"
-                            />
-                          )}
-                        </g>
-                      );
-                    } else {
-                      // Multi-hospital cluster
-                      return (
-                        <g
-                          key={`cluster-${ci}`}
-                          onMouseEnter={() => setHoveredClusterIndex(ci)}
-                          onMouseLeave={() => setHoveredClusterIndex(null)}
-                          className="cursor-pointer"
-                        >
-                          <circle
-                            cx={cluster.x}
-                            cy={cluster.y}
-                            r={isHovered ? 8.5 : 6.5}
-                            className="fill-primary/25 stroke-primary/30 animate-pulse"
-                            strokeWidth="0.5"
-                          />
-                          <circle
-                            cx={cluster.x}
-                            cy={cluster.y}
-                            r={isHovered ? 6.5 : 5.0}
-                            className="fill-primary stroke-background"
-                            strokeWidth="1.0"
-                          />
-                          <text
-                            x={cluster.x}
-                            y={cluster.y + 1.2}
-                            textAnchor="middle"
-                            className="fill-primary-foreground font-black pointer-events-none select-none text-[3.5px]"
-                          >
-                            {cluster.count}
-                          </text>
-                        </g>
-                      );
-                    }
-                  })}
-                </svg>
-
-                {/* Tooltip Overlay */}
-                {hoveredHospitalId && (() => {
-                  const hosp = list.find(h => h.id === hoveredHospitalId);
-                  if (!hosp) return null;
-                  const pos = mapCoordinates(hosp.lat, hosp.lng);
-                  return (
-                    <div 
-                      className="absolute bg-card border rounded-lg p-2.5 text-[9px] shadow-elevated pointer-events-none animate-fade-in max-w-[160px] text-left"
-                      style={{ 
-                        left: `${pos.x > 70 ? pos.x - 40 : pos.x + 3}%`, 
-                        top: `${pos.y > 70 ? pos.y - 18 : pos.y + 3}%` 
-                      }}
-                    >
-                      <h4 className="font-extrabold text-foreground leading-none flex items-center gap-1">
-                        <span>{hosp.name}</span>
-                        {hosp.verified && <span className="text-amber-500 font-extrabold text-[8px]">✓</span>}
-                      </h4>
-                      <span className="text-primary font-bold mt-1 block">Dist: {hosp.computedDistance}</span>
-                      <span className="text-muted-foreground block truncate mt-0.5">{hosp.address}</span>
-                      {hosp.hfrId && (
-                        <span className="text-[7px] text-amber-600 dark:text-amber-400 font-extrabold block mt-0.5">ABDM ID: {hosp.hfrId}</span>
-                      )}
-                    </div>
-                  );
-                })()}
-
-                {/* Cluster Tooltip Overlay */}
-                {hoveredClusterIndex !== null && (() => {
-                  const cluster = clusters[hoveredClusterIndex];
-                  if (!cluster) return null;
-                  return (
-                    <div 
-                      className="absolute bg-card border rounded-lg p-2.5 text-[9px] shadow-elevated pointer-events-none animate-fade-in max-w-[185px] text-left z-10"
-                      style={{ 
-                        left: `${cluster.x > 70 ? cluster.x - 45 : cluster.x + 3}%`, 
-                        top: `${cluster.y > 70 ? cluster.y - 25 : cluster.y + 3}%` 
-                      }}
-                    >
-                      <h4 className="font-extrabold text-primary leading-none mb-1.5 border-b pb-1 flex justify-between">
-                        <span>Cluster Location</span>
-                        <span>{cluster.count} Facilities</span>
-                      </h4>
-                      <div className="space-y-1 max-h-[100px] overflow-y-auto pr-1">
-                        {cluster.hospitals.map((h, i) => (
-                          <div key={i} className="text-[8px] truncate font-medium text-foreground">
-                            {i+1}. {h.name} <span className="text-primary font-bold">({h.computedDistance})</span>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  );
-                })()}
-
-                {/* Map Legend */}
-                <div className="absolute bottom-2 left-2 bg-card/85 backdrop-blur-sm border rounded px-2 py-1 text-[8px] flex items-center gap-2">
-                  <div className="flex items-center gap-1">
-                    <span className="w-2 h-2 rounded-full bg-primary block shrink-0" />
-                    <span className="font-bold text-foreground">User GPS</span>
-                  </div>
-                  <div className="flex items-center gap-1">
-                    <span className="w-2 h-2 rounded-full bg-red-500 block shrink-0" />
-                    <span className="font-bold text-foreground">Hospitals</span>
-                  </div>
-                </div>
-              </div>
+              {/* Memoized SVG Map Component */}
+              <InteractiveMap
+                list={list}
+                clusters={clusters}
+                userCoords={userCoords}
+                mapCoordinates={mapCoordinates}
+                hoveredHospitalId={hoveredHospitalId}
+                setHoveredHospitalId={setHoveredHospitalId}
+                hoveredClusterIndex={hoveredClusterIndex}
+                setHoveredClusterIndex={setHoveredClusterIndex}
+                isSearchingBackend={isSearchingBackend}
+              />
             </div>
           </div>
 
           {/* Column 3: Right Hospitals listings cards */}
-          <div className="lg:col-span-4 space-y-4 animate-fade-in max-h-[550px] overflow-y-auto pr-1">
+          <div className={`lg:col-span-4 space-y-4 animate-fade-in max-h-[550px] overflow-y-auto pr-1 scroll-touch-accelerated ${mobileTab === 'list' ? 'block' : 'hidden lg:block'}`}>
             <span className="text-xs font-bold text-muted-foreground uppercase block px-1">Plotted Facilities ({list.length})</span>
             {isSearchingBackend ? (
               <div className="space-y-4">
@@ -721,14 +629,14 @@ export const Hospitals: React.FC = () => {
                             e.stopPropagation();
                             setExpandedHospId(expandedHospId === hosp.id ? null : hosp.id);
                           }}
-                          className="w-full flex justify-between items-center text-[10px] font-extrabold text-primary hover:underline cursor-pointer"
+                          className="w-full flex justify-between items-center text-[10px] font-extrabold text-primary hover:underline cursor-pointer min-h-[30px]"
                         >
                           <span>Available Tests & Pricing</span>
                           <span>{expandedHospId === hosp.id ? '▲' : '▼'}</span>
                         </button>
                         
                         {expandedHospId === hosp.id && (
-                          <div className="mt-2 space-y-1.5 animate-fade-in bg-muted/20 p-2 rounded-lg border text-[9px] text-left animate-none">
+                          <div className="mt-2 space-y-1.5 animate-fade-in bg-muted/20 p-2 rounded-lg border text-[9px] text-left">
                             {!hosp.testMenu || hosp.testMenu.length === 0 ? (
                               <p className="text-muted-foreground text-center">No tests configured.</p>
                             ) : (
@@ -757,7 +665,7 @@ export const Hospitals: React.FC = () => {
                     <div className="flex gap-2 border-t pt-3 w-full mt-3">
                       <a
                         href={`tel:${hosp.phone}`}
-                        className="flex-1 py-1 px-3 border border-primary/20 hover:bg-secondary/40 text-primary font-bold rounded-lg text-[10px] flex items-center justify-center gap-1"
+                        className="flex-1 py-3 px-3 border border-primary/20 hover:bg-secondary/40 text-primary font-bold rounded-lg text-[10px] flex items-center justify-center gap-1 min-h-[48px]"
                       >
                         <Phone className="w-3 h-3" />
                         <span>Call</span>
@@ -765,7 +673,7 @@ export const Hospitals: React.FC = () => {
                       
                       <button
                         onClick={() => window.open(`https://www.google.com/maps/dir/?api=1&destination=${hosp.lat},${hosp.lng}`, '_blank')}
-                        className="flex-1 py-1 px-3 bg-gradient-medical text-white font-bold rounded-lg text-[10px] shadow-medical hover:opacity-90 transition-all flex items-center justify-center gap-1 cursor-pointer"
+                        className="flex-1 py-3 px-3 bg-gradient-medical text-white font-bold rounded-lg text-[10px] shadow-medical hover:opacity-90 transition-all flex items-center justify-center gap-1 cursor-pointer min-h-[48px]"
                       >
                         <Navigation className="w-3 h-3" />
                         <span>Directions</span>

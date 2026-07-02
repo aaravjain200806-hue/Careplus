@@ -50,6 +50,14 @@ export const DoctorDashboard: React.FC = () => {
   const [newDocType, setNewDocType] = useState<'prescription' | 'diagnostic_report' | 'clinical_note' | 'billing'>('prescription');
   const [newDocTitle, setNewDocTitle] = useState('');
   const [uploadSuccessMsg, setUploadSuccessMsg] = useState('');
+  const [newDocAmount, setNewDocAmount] = useState('500');
+  const [newDocDosage, setNewDocDosage] = useState('1 Tablet');
+  const [newDocFrequency, setNewDocFrequency] = useState('09:00 AM');
+  const [newDocDaysOfWeek, setNewDocDaysOfWeek] = useState('Everyday');
+  const [newDocIntervalHours, setNewDocIntervalHours] = useState('24');
+  const [newDocStock, setNewDocStock] = useState('30');
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [filePreviewUrl, setFilePreviewUrl] = useState<string | null>(null);
 
   // Hospital Configurator States
   const [newTestName, setNewTestName] = useState('');
@@ -100,48 +108,61 @@ export const DoctorDashboard: React.FC = () => {
   const handleUploadDocument = () => {
     if (!searchedAbhaId || !newDocTitle || !lookupResult) return;
     
-    // Generate mock FHIR compliance record JSON
+    // Generate structured compliance record JSON matching prompt criteria
     let fhirRecord = '';
-    if (newDocType === 'prescription') {
+    const recordId = `rec-${Date.now()}`;
+    const facilityName = user?.hospitalName || user?.name || "Sawai Man Singh Hospital";
+    const dateStr = new Date().toISOString().split('T')[0];
+
+    if (newDocType === 'diagnostic_report') {
       fhirRecord = JSON.stringify({
-        resourceType: "MedicationRequest",
-        id: `medreq-uploaded-${Date.now()}`,
-        status: "active",
-        intent: "order",
-        medicationCodeableConcept: { coding: [{ system: "http://snomed.info/sct", code: "387584000", display: newDocTitle }] },
-        subject: { reference: `Patient/${searchedAbhaId}`, display: lookupResult.name },
-        authoredOn: new Date().toISOString(),
-        requester: { display: `Dr. ${user?.name || "GP"}` }
-      }, null, 2);
-    } else if (newDocType === 'diagnostic_report') {
-      fhirRecord = JSON.stringify({
-        resourceType: "DiagnosticReport",
-        id: `diagrep-uploaded-${Date.now()}`,
-        status: "final",
-        code: { coding: [{ system: "http://loinc.org", code: "55233-1", display: newDocTitle }] },
-        subject: { reference: `Patient/${searchedAbhaId}`, display: lookupResult.name },
-        issued: new Date().toISOString(),
-        performer: [{ display: user?.hospitalName || "SMS Hospital" }]
+        id: recordId,
+        name: newDocTitle,
+        facility: facilityName,
+        date: dateStr,
+        fhirType: 'DiagnosticReport'
       }, null, 2);
     } else if (newDocType === 'billing') {
       fhirRecord = JSON.stringify({
-        resourceType: "ExplanationOfBenefit",
-        id: `eob-uploaded-${Date.now()}`,
-        status: "active",
-        use: "claim",
-        patient: { reference: `Patient/${searchedAbhaId}` },
-        provider: { display: user?.hospitalName || "SMS Hospital" },
-        outcome: "complete",
-        total: [{ category: { coding: [{ code: "submitted" }] }, amount: { value: 450.0, currency: "INR" } }]
+        id: recordId,
+        name: newDocTitle,
+        facility: facilityName,
+        date: dateStr,
+        amount: Number(newDocAmount),
+        fhirType: 'Billing'
       }, null, 2);
+    } else if (newDocType === 'prescription') {
+      fhirRecord = JSON.stringify({
+        id: recordId,
+        name: newDocTitle,
+        dosage: newDocDosage,
+        frequency: newDocFrequency,
+        daysOfWeek: newDocDaysOfWeek,
+        intervalHours: Number(newDocIntervalHours),
+        stock: Number(newDocStock),
+        fhirType: 'Prescription'
+      }, null, 2);
+
+      // Auto-trigger reminder registration so patient gets it in their timeline schedule
+      addReminder({
+        medicineId: newDocTitle.toLowerCase().includes('paracetamol') ? 1 : 4,
+        name: newDocTitle,
+        dosage: newDocDosage,
+        time: newDocFrequency,
+        stock_quantity: Number(newDocStock),
+        daysOfWeek: newDocDaysOfWeek.includes(',') ? newDocDaysOfWeek.split(',').map((s: string) => s.trim()) : [newDocDaysOfWeek],
+        durationDays: 30,
+        intervalHours: Number(newDocIntervalHours),
+        lastTakenTime: null,
+        startDate: new Date().toISOString()
+      });
     } else {
       fhirRecord = JSON.stringify({
-        resourceType: "DocumentReference",
-        id: `docref-uploaded-${Date.now()}`,
-        status: "current",
-        subject: { reference: `Patient/${searchedAbhaId}` },
-        date: new Date().toISOString(),
-        description: newDocTitle
+        id: recordId,
+        name: newDocTitle,
+        facility: facilityName,
+        date: dateStr,
+        fhirType: 'ClinicalNote'
       }, null, 2);
     }
 
@@ -150,8 +171,8 @@ export const DoctorDashboard: React.FC = () => {
       abhaAddress: lookupResult.address,
       title: newDocTitle,
       documentType: newDocType,
-      facilityName: user?.hospitalName || "Sawai Man Singh Hospital",
-      fileUrl: `${newDocTitle.toLowerCase().replace(/[^a-z0-9]/g, '_')}_file.pdf`,
+      facilityName: facilityName,
+      fileUrl: selectedFile ? selectedFile.name : `${newDocTitle.toLowerCase().replace(/[^a-z0-9]/g, '_')}_file.pdf`,
       fhirRecord
     });
 
@@ -165,6 +186,8 @@ export const DoctorDashboard: React.FC = () => {
 
     setUploadSuccessMsg(`Document linked and care context created successfully for ${lookupResult.name}!`);
     setNewDocTitle('');
+    setSelectedFile(null);
+    setFilePreviewUrl(null);
     
     setTimeout(() => {
       setUploadSuccessMsg('');
@@ -865,33 +888,142 @@ export const DoctorDashboard: React.FC = () => {
 
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                           <div className="space-y-1">
-                            <label className="text-[10px] font-bold text-muted-foreground uppercase block">Document Type *</label>
+                            <label className="text-[10px] font-bold text-muted-foreground uppercase block text-left">Document Type *</label>
                             <select
                               value={newDocType}
                               onChange={(e) => setNewDocType(e.target.value as any)}
-                              className="w-full px-2.5 py-1.5 border rounded-lg text-xs bg-card text-foreground"
+                              className="w-full px-2.5 py-1.5 border rounded-lg text-xs bg-card text-foreground font-semibold"
                             >
-                              <option value="prescription">Prescription Record</option>
+                              <option value="prescription">Prescription (Schedules)</option>
                               <option value="diagnostic_report">Diagnostic Lab Report</option>
-                              <option value="clinical_note">Clinical Note</option>
+                              <option value="clinical_note">Clinical / Discharge Note</option>
                               <option value="billing">Billing Document / Invoice</option>
                             </select>
                           </div>
                           <div className="space-y-1">
-                            <label className="text-[10px] font-bold text-muted-foreground uppercase block">Document Title *</label>
+                            <label className="text-[10px] font-bold text-muted-foreground uppercase block text-left">Document Title *</label>
                             <input
                               type="text"
                               placeholder="e.g. Lung Scan, Paracetamol Rx"
                               value={newDocTitle}
                               onChange={(e) => setNewDocTitle(e.target.value)}
-                              className="w-full px-2.5 py-1.5 border rounded-lg text-xs bg-card text-foreground"
+                              className="w-full px-2.5 py-1.5 border rounded-lg text-xs bg-card text-foreground font-semibold"
                             />
+                          </div>
+
+                          {/* Conditional Ingestion Fields for Prescriptions */}
+                          {newDocType === 'prescription' && (
+                            <>
+                              <div className="space-y-1 text-left">
+                                <label className="text-[10px] font-bold text-muted-foreground uppercase block">Dosage *</label>
+                                <input
+                                  type="text"
+                                  placeholder="e.g. 1 Tablet"
+                                  value={newDocDosage}
+                                  onChange={(e) => setNewDocDosage(e.target.value)}
+                                  className="w-full px-2.5 py-1.5 border rounded-lg text-xs bg-card text-foreground font-semibold"
+                                />
+                              </div>
+                              <div className="space-y-1 text-left">
+                                <label className="text-[10px] font-bold text-muted-foreground uppercase block">Intake Time *</label>
+                                <input
+                                  type="text"
+                                  placeholder="e.g. 09:00 AM"
+                                  value={newDocFrequency}
+                                  onChange={(e) => setNewDocFrequency(e.target.value)}
+                                  className="w-full px-2.5 py-1.5 border rounded-lg text-xs bg-card text-foreground font-semibold"
+                                />
+                              </div>
+                              <div className="space-y-1 text-left">
+                                <label className="text-[10px] font-bold text-muted-foreground uppercase block">Days of Week (comma-separated) *</label>
+                                <input
+                                  type="text"
+                                  placeholder="e.g. Everyday OR Monday, Wednesday, Friday"
+                                  value={newDocDaysOfWeek}
+                                  onChange={(e) => setNewDocDaysOfWeek(e.target.value)}
+                                  className="w-full px-2.5 py-1.5 border rounded-lg text-xs bg-card text-foreground font-semibold"
+                                />
+                              </div>
+                              <div className="space-y-1 col-span-1 text-left">
+                                <label className="text-[10px] font-bold text-muted-foreground uppercase block">Interval Hours *</label>
+                                <input
+                                  type="number"
+                                  placeholder="e.g. 24"
+                                  value={newDocIntervalHours}
+                                  onChange={(e) => setNewDocIntervalHours(e.target.value)}
+                                  className="w-full px-2.5 py-1.5 border rounded-lg text-xs bg-card text-foreground font-semibold"
+                                />
+                              </div>
+                              <div className="space-y-1 col-span-1 text-left">
+                                <label className="text-[10px] font-bold text-muted-foreground uppercase block">Initial Pill Stock *</label>
+                                <input
+                                  type="number"
+                                  placeholder="e.g. 30"
+                                  value={newDocStock}
+                                  onChange={(e) => setNewDocStock(e.target.value)}
+                                  className="w-full px-2.5 py-1.5 border rounded-lg text-xs bg-card text-foreground font-semibold"
+                                />
+                              </div>
+                            </>
+                          )}
+
+                          {/* Conditional Ingestion Fields for Billing */}
+                          {newDocType === 'billing' && (
+                            <div className="space-y-1 text-left">
+                              <label className="text-[10px] font-bold text-muted-foreground uppercase block">Bill Amount (₹) *</label>
+                              <input
+                                type="number"
+                                placeholder="e.g. 500"
+                                value={newDocAmount}
+                                onChange={(e) => setNewDocAmount(e.target.value)}
+                                className="w-full px-2.5 py-1.5 border rounded-lg text-xs bg-card text-foreground font-semibold"
+                              />
+                            </div>
+                          )}
+
+                          {/* File Selector for Doctor/Hospital Upload */}
+                          <div className="space-y-1 col-span-1 sm:col-span-2 text-left">
+                            <label className="text-[10px] font-bold text-muted-foreground block uppercase font-semibold">Upload Scanned Document / Photo (PDF, JPG, PNG) *</label>
+                            <label className="border border-dashed border-border p-4 rounded-xl text-center bg-muted/10 cursor-pointer hover:bg-muted/20 transition-all flex flex-col items-center justify-center min-h-[90px]">
+                              <input
+                                type="file"
+                                accept="image/*,application/pdf"
+                                className="hidden"
+                                onChange={(e) => {
+                                  if (e.target.files && e.target.files[0]) {
+                                    const file = e.target.files[0];
+                                    setSelectedFile(file);
+                                    if (file.type.startsWith('image/')) {
+                                      setFilePreviewUrl(URL.createObjectURL(file));
+                                    } else {
+                                      setFilePreviewUrl(null);
+                                    }
+                                  }
+                                }}
+                                required
+                              />
+                              <Plus className="w-5 h-5 text-primary mb-1 animate-pulse" />
+                              {selectedFile ? (
+                                <div className="space-y-1 text-center">
+                                  <span className="text-[10px] text-foreground font-extrabold break-all">{selectedFile.name}</span>
+                                  <span className="text-[8px] text-muted-foreground block">{(selectedFile.size / (1024 * 1024)).toFixed(2)} MB</span>
+                                  {filePreviewUrl && (
+                                    <img src={filePreviewUrl} alt="Preview" className="w-10 h-10 object-cover mx-auto rounded border border-border mt-1" />
+                                  )}
+                                </div>
+                              ) : (
+                                <>
+                                  <span className="text-[10px] text-primary font-bold">Choose Scan File (PDF, JPEG, or PNG)</span>
+                                  <span className="text-[8px] text-muted-foreground mt-0.5">Maximum size: 10MB</span>
+                                </>
+                              )}
+                            </label>
                           </div>
                         </div>
 
                         <button
                           onClick={handleUploadDocument}
-                          className="w-full py-2 bg-gradient-medical text-white font-bold text-xs rounded-lg shadow-medical hover:opacity-90 flex items-center justify-center gap-1.5 transition-all cursor-pointer"
+                          className="w-full py-3 bg-gradient-medical text-white font-bold text-xs rounded-xl shadow-medical hover:opacity-90 flex items-center justify-center gap-1.5 transition-all cursor-pointer min-h-[48px]"
                         >
                           <Plus className="w-4 h-4" />
                           <span>Link Document to Care Context (on_carecontext)</span>

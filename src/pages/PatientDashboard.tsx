@@ -13,7 +13,7 @@ export const PatientDashboard: React.FC = () => {
   const { t } = useLanguage();
   const navigate = useNavigate();
   const { 
-    user, appointments, reminders, takeMedicine, deleteReminder, 
+    user, appointments, reminders, takeMedicine, markAsTaken, deleteReminder, 
     updateAppointmentStatus, addReminder,
     abhaId, abhaAddress, setAbhaDetails, consentRecords, updateConsentStatus,
     telemetry, updateTelemetry, healthNudges, fhirLogs, addFhirLog,
@@ -43,12 +43,128 @@ export const PatientDashboard: React.FC = () => {
   const [manualGlucose, setManualGlucose] = useState(110);
   const [manualHrv, setManualHrv] = useState(58);
 
+  // Live ticking clock for countdown timers
+  const [now, setNow] = useState(Date.now());
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setNow(Date.now());
+    }, 1000);
+    return () => clearInterval(timer);
+  }, []);
+
+  // Web Audio Alert Engine State
+  const [audioActive, setAudioActive] = useState(false);
+  const audioRef = React.useRef<{ audioCtx: AudioContext | null; gainNode: GainNode | null; intervalId: any }>({
+    audioCtx: null,
+    gainNode: null,
+    intervalId: null
+  });
+
+  // Filter and check reminders that are currently due/alerting
+  const dueReminders = React.useMemo(() => {
+    return reminders.filter(r => {
+      if (r.user_id && r.user_id !== user?.email) return false;
+      
+      // 1. Day Guard Check
+      const todayName = new Date(now).toLocaleDateString('en-US', { weekday: 'long' });
+      const daysArray = Array.isArray(r.daysOfWeek)
+        ? r.daysOfWeek
+        : typeof r.daysOfWeek === 'string'
+          ? (r.daysOfWeek.startsWith('[') ? JSON.parse(r.daysOfWeek) : [r.daysOfWeek])
+          : ['Everyday'];
+      const isScheduled = daysArray.includes('Everyday') || daysArray.includes(todayName);
+      if (!isScheduled) return false;
+
+      // 2. Interval Lockout Check
+      const lastTaken = r.lastTakenTime || r.last_taken_at;
+      if (!lastTaken) return true; // Never taken, so it is due
+      const intervalHours = r.intervalHours ?? 24;
+      const elapsed = now - new Date(lastTaken).getTime();
+      return elapsed >= intervalHours * 3600 * 1000;
+    });
+  }, [reminders, user?.email, now]);
+
+  const cleanupAudio = React.useCallback(() => {
+    if (audioRef.current.intervalId) {
+      clearInterval(audioRef.current.intervalId);
+    }
+    if (audioRef.current.audioCtx) {
+      try {
+        audioRef.current.audioCtx.close();
+      } catch (e) {
+        console.error(e);
+      }
+    }
+    audioRef.current = { audioCtx: null, gainNode: null, intervalId: null };
+    setAudioActive(false);
+  }, []);
+
+  useEffect(() => {
+    const isAnyDue = dueReminders.length > 0;
+    
+    if (isAnyDue && !audioActive) {
+      try {
+        const AudioCtxClass = window.AudioContext || (window as any).webkitAudioContext;
+        if (AudioCtxClass) {
+          const audioCtx = new AudioCtxClass();
+          const osc = audioCtx.createOscillator();
+          const gainNode = audioCtx.createGain();
+          
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(880, audioCtx.currentTime); // 880Hz
+          
+          gainNode.gain.setValueAtTime(0, audioCtx.currentTime);
+          osc.connect(gainNode);
+          gainNode.connect(audioCtx.destination);
+          osc.start();
+          
+          const tick = () => {
+            if (audioCtx.state === 'suspended') {
+              audioCtx.resume();
+            }
+            const nowTime = audioCtx.currentTime;
+            // Pulse sound: 1.0 for 200ms, then 0.0
+            gainNode.gain.setValueAtTime(1.0, nowTime);
+            gainNode.gain.setValueAtTime(0.0, nowTime + 0.2);
+          };
+          
+          tick();
+          const intervalId = setInterval(tick, 1000);
+          
+          audioRef.current = {
+            audioCtx,
+            gainNode,
+            intervalId
+          };
+          setAudioActive(true);
+        }
+      } catch (e) {
+        console.error("Web Audio API failed to load", e);
+      }
+    } else if (!isAnyDue && audioActive) {
+      cleanupAudio();
+    }
+  }, [dueReminders.length, audioActive, cleanupAudio]);
+
+  useEffect(() => {
+    return () => {
+      if (audioRef.current.intervalId) {
+        clearInterval(audioRef.current.intervalId);
+      }
+      if (audioRef.current.audioCtx) {
+        audioRef.current.audioCtx.close();
+      }
+    };
+  }, []);
+
   // Patient Upload states
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
   const [uploadDocType, setUploadDocType] = useState<'prescription' | 'diagnostic_report' | 'clinical_note' | 'billing'>('prescription');
   const [uploadDocTitle, setUploadDocTitle] = useState('');
   const [uploadFacilityName, setUploadFacilityName] = useState('');
   const [uploadSuccessMsg, setUploadSuccessMsg] = useState('');
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [filePreviewUrl, setFilePreviewUrl] = useState<string | null>(null);
 
   const handlePatientUpload = (e: React.FormEvent) => {
     e.preventDefault();
@@ -104,7 +220,7 @@ export const PatientDashboard: React.FC = () => {
       title: uploadDocTitle,
       documentType: uploadDocType,
       facilityName: uploadFacilityName,
-      fileUrl: `${uploadDocTitle.toLowerCase().replace(/[^a-z0-9]/g, '_')}_locker.pdf`,
+      fileUrl: selectedFile ? selectedFile.name : `${uploadDocTitle.toLowerCase().replace(/[^a-z0-9]/g, '_')}_locker.pdf`,
       fhirRecord
     });
 
@@ -119,6 +235,8 @@ export const PatientDashboard: React.FC = () => {
     setUploadSuccessMsg('Document securely uploaded to your ABDM Health Locker!');
     setUploadDocTitle('');
     setUploadFacilityName('');
+    setSelectedFile(null);
+    setFilePreviewUrl(null);
     
     setTimeout(() => {
       setUploadSuccessMsg('');
@@ -550,53 +668,53 @@ export const PatientDashboard: React.FC = () => {
           </div>
         </div>
 
-        {/* Premium Dashboard Segmented Tabs */}
-        <div className="flex gap-2 border-b pb-4 mb-6">
-          <button
-            onClick={() => setActiveTab('records')}
-            className={`px-4 py-2 rounded-xl text-xs font-bold border transition-all flex items-center gap-1.5 ${
-              activeTab === 'records'
-                ? 'bg-primary text-primary-foreground border-primary shadow-medical'
-                : 'bg-card text-muted-foreground border-border hover:bg-muted/40'
-            }`}
-          >
-            <Calendar className="w-4 h-4" />
-            <span>Consultations & Alerts</span>
-          </button>
-          <button
-            onClick={() => setActiveTab('rpm')}
-            className={`px-4 py-2 rounded-xl text-xs font-bold border transition-all flex items-center gap-1.5 ${
-              activeTab === 'rpm'
-                ? 'bg-primary text-primary-foreground border-primary shadow-medical'
-                : 'bg-card text-muted-foreground border-border hover:bg-muted/40'
-            }`}
-          >
-            <Activity className="w-4 h-4" />
-            <span>Connected Health Sensors (IoMT)</span>
-          </button>
-          <button
-            onClick={() => setActiveTab('abdm')}
-            className={`px-4 py-2 rounded-xl text-xs font-bold border transition-all flex items-center gap-1.5 ${
-              activeTab === 'abdm'
-                ? 'bg-primary text-primary-foreground border-primary shadow-medical'
-                : 'bg-card text-muted-foreground border-border hover:bg-muted/40'
-            }`}
-          >
-            <ShieldCheck className="w-4 h-4" />
-            <span>ABDM Compliance Hub</span>
-          </button>
-          <button
-            onClick={() => setActiveTab('reports')}
-            className={`px-4 py-2 rounded-xl text-xs font-bold border transition-all flex items-center gap-1.5 ${
-              activeTab === 'reports'
-                ? 'bg-primary text-primary-foreground border-primary shadow-medical'
-                : 'bg-card text-muted-foreground border-border hover:bg-muted/40'
-            }`}
-          >
-            <FileText className="w-4 h-4" />
-            <span>My Reports (PHR Vault)</span>
-          </button>
-        </div>
+      {/* Premium Dashboard Segmented Tabs */}
+      <div className="flex gap-2 border-b pb-4 mb-6 overflow-x-auto scrollbar-none scroll-touch-accelerated whitespace-nowrap">
+        <button
+          onClick={() => setActiveTab('records')}
+          className={`shrink-0 px-4 py-3 min-h-[48px] rounded-xl text-xs font-bold border transition-all flex items-center gap-1.5 ${
+            activeTab === 'records'
+              ? 'bg-primary text-primary-foreground border-primary shadow-medical'
+              : 'bg-card text-muted-foreground border-border hover:bg-muted/40'
+          }`}
+        >
+          <Calendar className="w-4 h-4" />
+          <span>Consultations & Alerts</span>
+        </button>
+        <button
+          onClick={() => setActiveTab('rpm')}
+          className={`shrink-0 px-4 py-3 min-h-[48px] rounded-xl text-xs font-bold border transition-all flex items-center gap-1.5 ${
+            activeTab === 'rpm'
+              ? 'bg-primary text-primary-foreground border-primary shadow-medical'
+              : 'bg-card text-muted-foreground border-border hover:bg-muted/40'
+          }`}
+        >
+          <Activity className="w-4 h-4" />
+          <span>Connected Health Sensors (IoMT)</span>
+        </button>
+        <button
+          onClick={() => setActiveTab('abdm')}
+          className={`shrink-0 px-4 py-3 min-h-[48px] rounded-xl text-xs font-bold border transition-all flex items-center gap-1.5 ${
+            activeTab === 'abdm'
+              ? 'bg-primary text-primary-foreground border-primary shadow-medical'
+              : 'bg-card text-muted-foreground border-border hover:bg-muted/40'
+          }`}
+        >
+          <ShieldCheck className="w-4 h-4" />
+          <span>ABDM Compliance Hub</span>
+        </button>
+        <button
+          onClick={() => setActiveTab('reports')}
+          className={`shrink-0 px-4 py-3 min-h-[48px] rounded-xl text-xs font-bold border transition-all flex items-center gap-1.5 ${
+            activeTab === 'reports'
+              ? 'bg-primary text-primary-foreground border-primary shadow-medical'
+              : 'bg-card text-muted-foreground border-border hover:bg-muted/40'
+          }`}
+        >
+          <FileText className="w-4 h-4" />
+          <span>My Reports (PHR Vault)</span>
+        </button>
+      </div>
 
         <div className="grid lg:grid-cols-3 gap-6">
           
@@ -608,7 +726,7 @@ export const PatientDashboard: React.FC = () => {
               <div className="space-y-6">
                 
                 {/* Active Consultations */}
-                <div className="bg-card border rounded-2xl p-6 shadow-medical">
+                <div className="bg-card border rounded-2xl px-4 py-4 md:p-6 shadow-medical">
                   <h2 className="text-lg font-bold flex items-center gap-2 mb-4">
                     <Calendar className="w-5 h-5 text-primary" />
                     Active Consultations
@@ -619,7 +737,7 @@ export const PatientDashboard: React.FC = () => {
                       <p className="text-sm text-muted-foreground mb-4">No appointments scheduled</p>
                       <Link
                         to="/appointments"
-                        className="inline-flex items-center gap-1.5 text-xs text-primary font-bold hover:underline"
+                        className="inline-flex items-center justify-center gap-1.5 text-xs text-primary font-bold hover:underline min-h-[48px] px-4 py-2"
                       >
                         <span>Book a doctor now</span>
                         <ArrowRight className="w-3.5 h-3.5" />
@@ -655,7 +773,7 @@ export const PatientDashboard: React.FC = () => {
                                   updateAppointmentStatus(app.id, 'cancelled');
                                   addFhirLog(`Appointment with ${app.doctor_name} cancelled.`, 'info');
                                 }}
-                                className="text-xs font-semibold text-destructive hover:underline"
+                                className="min-h-[48px] px-3.5 py-2 flex items-center text-xs font-bold text-destructive hover:bg-destructive/5 rounded-xl border border-transparent hover:border-destructive/20 cursor-pointer"
                               >
                                 Cancel
                               </button>
@@ -668,7 +786,7 @@ export const PatientDashboard: React.FC = () => {
                 </div>
 
                 {/* Diagnostic Lab Bookings */}
-                <div className="bg-card border rounded-2xl p-6 shadow-medical">
+                <div className="bg-card border rounded-2xl px-4 py-4 md:p-6 shadow-medical">
                   <h2 className="text-lg font-bold flex items-center gap-2 mb-4">
                     <Activity className="w-5 h-5 text-primary" />
                     Diagnostic Lab Bookings
@@ -679,7 +797,7 @@ export const PatientDashboard: React.FC = () => {
                       <p className="text-sm text-muted-foreground mb-4">No diagnostic test appointments scheduled</p>
                       <Link
                         to="/book-test"
-                        className="inline-flex items-center gap-1.5 text-xs text-primary font-bold hover:underline"
+                        className="inline-flex items-center justify-center gap-1.5 text-xs text-primary font-bold hover:underline min-h-[48px] px-4 py-2"
                       >
                         <span>Book a lab test now</span>
                         <ArrowRight className="w-3.5 h-3.5" />
@@ -715,7 +833,7 @@ export const PatientDashboard: React.FC = () => {
                                 onClick={() => {
                                   updateTestBookingStatus(booking.id, 'cancelled');
                                 }}
-                                className="text-xs font-semibold text-destructive hover:underline cursor-pointer"
+                                className="min-h-[48px] px-3.5 py-2 flex items-center text-xs font-bold text-destructive hover:bg-destructive/5 rounded-xl border border-transparent hover:border-destructive/20 cursor-pointer"
                               >
                                 Cancel
                               </button>
@@ -728,7 +846,7 @@ export const PatientDashboard: React.FC = () => {
                 </div>
 
                 {/* Reminders & Schedules */}
-                <div className="bg-card border rounded-2xl p-6 shadow-medical">
+                <div className="bg-card border rounded-2xl px-4 py-4 md:p-6 shadow-medical">
                   <h2 className="text-lg font-bold flex items-center gap-2 mb-4">
                     <Pill className="w-5 h-5 text-primary" />
                     Prescription Schedules & Intake Alerts
@@ -739,21 +857,68 @@ export const PatientDashboard: React.FC = () => {
                       <p className="text-sm text-muted-foreground mb-4">No medicine reminders configured</p>
                       <Link
                         to="/medicines"
-                        className="inline-flex items-center gap-1.5 text-xs text-primary font-bold hover:underline"
+                        className="inline-flex items-center justify-center gap-1.5 text-xs text-primary font-bold hover:underline min-h-[48px] px-4 py-2"
                       >
                         <span>Configure reminders</span>
                         <ArrowRight className="w-3.5 h-3.5" />
                       </Link>
                     </div>
                   ) : (
-                    <div className="grid md:grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       {reminders.filter(r => !r.user_id || r.user_id === user.email).map((reminder) => {
                         const lowStock = reminder.stock_quantity < 5;
+                        
+                        // Step 1: Check Days of Week (Weekly Day Guard)
+                        const todayName = new Date(now).toLocaleDateString('en-US', { weekday: 'long' });
+                        const daysArray = Array.isArray(reminder.daysOfWeek)
+                          ? reminder.daysOfWeek
+                          : typeof reminder.daysOfWeek === 'string'
+                            ? (reminder.daysOfWeek.startsWith('[') ? JSON.parse(reminder.daysOfWeek) : [reminder.daysOfWeek])
+                            : ['Everyday'];
+                        const isScheduledToday = daysArray.includes('Everyday') || daysArray.includes(todayName);
+
+                        // Step 2: Check Time Elapsed (Interval Lockout Guard)
+                        const lastTaken = reminder.lastTakenTime || reminder.last_taken_at;
+                        const intervalHours = reminder.intervalHours ?? 24;
+                        const intervalMs = intervalHours * 3600 * 1000;
+                        const isLockedOut = lastTaken ? (now - new Date(lastTaken).getTime() < intervalMs) : false;
+
+                        // Calculate live countdown timer values if locked out
+                        let formattedTimeLeft = '';
+                        if (lastTaken && isLockedOut) {
+                          const timeLeftMs = intervalMs - (now - new Date(lastTaken).getTime());
+                          const hoursLeft = Math.floor(timeLeftMs / (3600 * 1000));
+                          const minsLeft = Math.floor((timeLeftMs % (3600 * 1000)) / (60 * 1000));
+                          const secsLeft = Math.floor((timeLeftMs % (60 * 1000)) / 1000);
+                          formattedTimeLeft = `Next Dose in ${hoursLeft.toString().padStart(2, '0')}h ${minsLeft.toString().padStart(2, '0')}m ${secsLeft.toString().padStart(2, '0')}s`;
+                        }
+
+                        // Determine button status
+                        let btnDisabled = false;
+                        let btnText = 'Mark Taken';
+                        let btnPulseClass = '';
+                        let btnColorClass = 'bg-gradient-medical text-white';
+
+                        if (!isScheduledToday) {
+                          btnDisabled = true;
+                          btnText = `Not Scheduled Today (Next: ${daysArray.filter(d => d !== 'Everyday').join(', ') || 'Scheduled Days'})`;
+                          btnColorClass = 'bg-muted/50 text-muted-foreground/60 border border-border/40';
+                        } else if (isLockedOut) {
+                          btnDisabled = true;
+                          btnText = formattedTimeLeft;
+                          btnColorClass = 'bg-muted/30 text-muted-foreground/50 border border-border/20';
+                        } else {
+                          // Both guards passed: alarm sounding!
+                          btnPulseClass = 'animate-pulse shadow-medical';
+                          btnText = 'Take Now! (Sounding Alarm)';
+                          btnColorClass = 'bg-gradient-medical text-white font-black hover:opacity-90';
+                        }
+
                         return (
-                          <div key={reminder.id} className="border p-4 rounded-xl space-y-3 relative flex flex-col justify-between">
+                          <div key={reminder.id} className="border px-4 py-4 rounded-xl space-y-3 relative flex flex-col justify-between bg-card hover:shadow-elevated transition-all scroll-touch-accelerated">
                             <button
                               onClick={() => deleteReminder(reminder.id)}
-                              className="absolute top-3 right-3 text-muted-foreground hover:text-destructive transition-colors"
+                              className="absolute top-3 right-3 text-muted-foreground hover:text-destructive transition-colors min-h-[30px] p-1.5 rounded-lg hover:bg-muted"
                               aria-label="Delete Reminder"
                             >
                               <Trash2 className="w-4 h-4" />
@@ -765,6 +930,10 @@ export const PatientDashboard: React.FC = () => {
                                 <span>Dosage: {reminder.dosage}</span>
                                 <span>Time: {reminder.time}</span>
                               </div>
+                              <div className="text-[10px] text-muted-foreground/80 mt-1 font-semibold flex justify-between">
+                                <span>Schedule: {daysArray.join(', ')}</span>
+                                <span>Interval: {reminder.intervalHours ?? 24}h</span>
+                              </div>
                               
                               <div className="mt-2 text-xs flex justify-between items-center font-medium">
                                 <span className={lowStock ? 'text-destructive font-semibold flex items-center gap-0.5' : 'text-muted-foreground'}>
@@ -772,9 +941,9 @@ export const PatientDashboard: React.FC = () => {
                                   Stock: {reminder.stock_quantity} left
                                 </span>
                                 
-                                {reminder.last_taken_at && (
+                                {lastTaken && (
                                   <span className="text-[10px] bg-success/15 text-success border border-success/20 px-1.5 py-0.5 rounded font-mono">
-                                    Taken: {new Date(reminder.last_taken_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                                    Taken: {new Date(lastTaken).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
                                   </span>
                                 )}
                               </div>
@@ -783,20 +952,20 @@ export const PatientDashboard: React.FC = () => {
                             <div className="pt-2 flex gap-2">
                               <button
                                 onClick={() => {
-                                  takeMedicine(reminder.id);
-                                  addFhirLog(`Patient took medicine: ${reminder.name}`, 'info');
+                                  markAsTaken(reminder.id);
+                                  cleanupAudio();
                                 }}
-                                disabled={reminder.stock_quantity === 0}
-                                className="flex-1 py-1.5 bg-gradient-medical text-white font-semibold text-xs rounded-lg hover:opacity-90 active:scale-95 transition-all flex items-center justify-center gap-1 shadow-medical disabled:opacity-50"
+                                disabled={btnDisabled || reminder.stock_quantity === 0}
+                                className={`flex-1 py-3 min-h-[48px] rounded-xl font-bold text-xs transition-all flex items-center justify-center gap-1.5 cursor-pointer ${btnColorClass} ${btnPulseClass} disabled:opacity-50 disabled:cursor-not-allowed`}
                               >
                                 <CheckCircle2 className="w-3.5 h-3.5" />
-                                <span>Mark Taken</span>
+                                <span>{btnText}</span>
                               </button>
                               
                               {lowStock && (
                                 <Link
                                   to="/medicine-shop"
-                                  className="px-2 py-1.5 border border-primary/20 text-primary hover:bg-secondary/40 text-xs font-semibold rounded-lg flex items-center justify-center"
+                                  className="px-4 py-2.5 min-h-[48px] border border-primary/20 text-primary hover:bg-secondary/40 text-xs font-bold rounded-xl flex items-center justify-center cursor-pointer"
                                 >
                                   Refill
                                 </Link>
@@ -814,7 +983,7 @@ export const PatientDashboard: React.FC = () => {
             {/* Tab 4: My Reports PHR Vault */}
             {activeTab === 'reports' && (
               <div className="space-y-6 animate-fade-in">
-                <div className="bg-card border rounded-2xl p-6 shadow-medical">
+                <div className="bg-card border rounded-2xl px-4 py-4 md:p-6 shadow-medical">
                   <div className="flex flex-col sm:flex-row justify-between sm:items-center mb-6 border-b pb-4 gap-4">
                     <div>
                       <h2 className="text-lg font-bold flex items-center gap-2 text-primary">
@@ -831,7 +1000,7 @@ export const PatientDashboard: React.FC = () => {
                       </span>
                       <button
                         onClick={() => setIsUploadModalOpen(true)}
-                        className="py-1.5 px-4 bg-gradient-medical text-white font-bold rounded-xl text-xs flex items-center gap-1.5 shadow-medical hover:opacity-95 cursor-pointer"
+                        className="py-2.5 px-4 min-h-[48px] bg-gradient-medical text-white font-bold rounded-xl text-xs flex items-center justify-center gap-1.5 shadow-medical hover:opacity-95 cursor-pointer"
                       >
                         <Plus className="w-4 h-4" />
                         <span>Upload New Record</span>
@@ -845,9 +1014,9 @@ export const PatientDashboard: React.FC = () => {
                       <p className="text-sm text-muted-foreground">No reports found linked to your ABHA address.</p>
                     </div>
                   ) : (
-                    <div className="grid sm:grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       {healthDocuments.filter(doc => doc.abhaId === abhaId).map((doc) => (
-                        <div key={doc.id} className="border p-4.5 rounded-xl bg-card space-y-3.5 relative flex flex-col justify-between hover:shadow-elevated transition-all">
+                        <div key={doc.id} className="border px-4 py-4 sm:p-5 rounded-xl bg-card space-y-3.5 relative flex flex-col justify-between hover:shadow-elevated transition-all scroll-touch-accelerated">
                           <div>
                             <div className="flex justify-between items-start">
                               <span className={`text-[9px] font-black uppercase border px-2 py-0.5 rounded-full ${
@@ -870,12 +1039,40 @@ export const PatientDashboard: React.FC = () => {
                             <p className="text-[10px] text-muted-foreground mt-1 flex items-center gap-1 font-medium">
                               <span className="font-bold text-foreground">Facility:</span> {doc.facilityName}
                             </p>
+                            
+                            {/* Dynamically parsed FHIR payload attributes */}
+                            {(() => {
+                              try {
+                                if (doc.fhirRecord) {
+                                  const parsed = JSON.parse(doc.fhirRecord);
+                                  if (parsed.fhirType === 'Billing' && parsed.amount) {
+                                    return (
+                                      <p className="text-[10px] text-success font-bold mt-1">
+                                        Total Bill Amount: ₹{parsed.amount}
+                                      </p>
+                                    );
+                                  }
+                                  if (parsed.fhirType === 'Prescription') {
+                                    return (
+                                      <div className="text-[9px] bg-secondary/30 rounded p-1.5 mt-1 border border-border/20 text-muted-foreground font-semibold space-y-0.5">
+                                        <p><span className="text-foreground">Dosage:</span> {parsed.dosage}</p>
+                                        <p><span className="text-foreground">Time:</span> {parsed.frequency}</p>
+                                        <p><span className="text-foreground">Schedule:</span> {parsed.daysOfWeek}</p>
+                                        <p><span className="text-foreground">Interval:</span> {parsed.intervalHours}h</p>
+                                      </div>
+                                    );
+                                  }
+                                }
+                              } catch (e) {}
+                              return null;
+                            })()}
+
                             <p className="text-[9px] text-amber-600 dark:text-amber-400 font-mono mt-1 font-bold">
                               Care Context Reference: {doc.careContextId}
                             </p>
                           </div>
 
-                          <div className="flex gap-2 pt-2 border-t text-[10px]">
+                          <div className="flex gap-2 pt-2 border-t text-[10px] sm:text-xs">
                             <button
                               onClick={() => {
                                 setShowFhirPayloadModal({
@@ -884,7 +1081,7 @@ export const PatientDashboard: React.FC = () => {
                                   payload: doc.fhirRecord
                                 });
                               }}
-                              className="flex-1 py-1.5 border border-primary/20 text-primary hover:bg-primary/5 font-bold rounded-lg flex items-center justify-center gap-1 cursor-pointer"
+                              className="flex-1 py-3 min-h-[48px] border border-primary/20 text-primary hover:bg-primary/5 font-bold rounded-xl flex items-center justify-center gap-1.5 cursor-pointer"
                             >
                               <FileCode className="w-3.5 h-3.5" />
                               <span>FHIR Record</span>
@@ -892,7 +1089,7 @@ export const PatientDashboard: React.FC = () => {
                             {doc.fileUrl && (
                               <button
                                 onClick={() => alert(`Simulating file download: ${doc.fileUrl}`)}
-                                className="flex-1 py-1.5 bg-gradient-medical text-white font-bold rounded-lg shadow-medical hover:opacity-95 flex items-center justify-center gap-1 cursor-pointer"
+                                className="flex-1 py-3 min-h-[48px] bg-gradient-medical text-white font-bold rounded-xl shadow-medical hover:opacity-95 flex items-center justify-center gap-1.5 cursor-pointer"
                               >
                                 <FileText className="w-3.5 h-3.5" />
                                 <span>Download PDF</span>
@@ -912,7 +1109,7 @@ export const PatientDashboard: React.FC = () => {
               <div className="space-y-6">
                 
                 {/* Vitals Telemetry Grid */}
-                <div className="bg-card border rounded-2xl p-6 shadow-medical">
+                <div className="bg-card border rounded-2xl px-4 py-4 md:p-6 shadow-medical">
                   <div className="flex items-center justify-between mb-4">
                     <h2 className="text-lg font-bold flex items-center gap-2">
                       <Activity className="w-5 h-5 text-primary animate-pulse" />
@@ -924,7 +1121,7 @@ export const PatientDashboard: React.FC = () => {
                     </span>
                   </div>
 
-                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
                     
                     {/* HRV */}
                     <div className="border rounded-xl p-4 space-y-1.5 bg-secondary/10">
@@ -1101,10 +1298,10 @@ export const PatientDashboard: React.FC = () => {
               <div className="space-y-6 animate-fade-in">
                 
                 {/* ABDM Dashboard Grid */}
-                <div className="grid md:grid-cols-2 gap-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   
                   {/* ABHA National Card */}
-                  <div className="bg-gradient-to-br from-blue-700 to-indigo-900 text-white rounded-2xl p-6 shadow-elevated relative overflow-hidden flex flex-col justify-between h-56 border border-white/10">
+                  <div className="bg-gradient-to-br from-blue-700 to-indigo-900 text-white rounded-2xl px-4 py-4 md:p-6 shadow-elevated relative overflow-hidden flex flex-col justify-between h-58 border border-white/10 scroll-touch-accelerated">
                     <div className="absolute right-0 top-0 w-28 h-28 bg-white/5 rounded-full -mr-6 -mt-6"></div>
                     
                     <div className="flex justify-between items-start">
@@ -1136,13 +1333,13 @@ export const PatientDashboard: React.FC = () => {
                           setAadhaarNumber('');
                           setAadhaarOtp('');
                         }}
-                        className="text-blue-200 hover:text-white font-bold underline cursor-pointer"
+                        className="text-blue-200 hover:text-white font-bold underline cursor-pointer min-h-[48px] flex items-center"
                       >
                         Generate / Link ABHA Card
                       </button>
                       <button
                         onClick={() => setShowScanShareModal(true)}
-                        className="px-2.5 py-1 bg-white text-indigo-950 font-bold rounded hover:opacity-90 flex items-center gap-1 transition-all"
+                        className="px-3.5 py-2.5 bg-white text-indigo-950 font-bold rounded hover:opacity-90 flex items-center gap-1 transition-all min-h-[48px] justify-center cursor-pointer"
                       >
                         <Share2 className="w-3 h-3" />
                         <span>Scan & Share (OPD)</span>
@@ -1151,7 +1348,7 @@ export const PatientDashboard: React.FC = () => {
                   </div>
 
                   {/* ABDM QR Code Details info */}
-                  <div className="border border-border rounded-2xl p-6 bg-card space-y-4 flex flex-col justify-between">
+                  <div className="border border-border rounded-2xl px-4 py-4 md:p-6 bg-card space-y-4 flex flex-col justify-between">
                     <div className="space-y-2">
                       <h3 className="text-sm font-bold text-foreground flex items-center gap-1.5">
                         <Share2 className="w-4 h-4 text-primary" />
@@ -1163,7 +1360,7 @@ export const PatientDashboard: React.FC = () => {
                     </div>
                     <button
                       onClick={() => setShowScanShareModal(true)}
-                      className="w-full py-2 bg-gradient-medical text-white font-bold text-xs rounded-xl shadow-medical flex items-center justify-center gap-1.5 transition-all"
+                      className="w-full py-3 min-h-[48px] bg-gradient-medical text-white font-bold text-xs rounded-xl shadow-medical flex items-center justify-center gap-1.5 transition-all cursor-pointer"
                     >
                       <Share2 className="w-4 h-4" />
                       <span>Bypass Waiting Room Queue Now</span>
@@ -1173,7 +1370,7 @@ export const PatientDashboard: React.FC = () => {
                 </div>
 
                 {/* Incoming Consent Requests */}
-                <div className="bg-card border rounded-2xl p-6 shadow-medical">
+                <div className="bg-card border rounded-2xl px-4 py-4 md:p-6 shadow-medical">
                   <h2 className="text-lg font-bold flex items-center gap-2 mb-2 text-primary">
                     <Bell className="w-5 h-5 text-primary animate-bounce" />
                     Incoming Doctor Consent Requests (HIU Role)
@@ -1189,7 +1386,7 @@ export const PatientDashboard: React.FC = () => {
                   ) : (
                     <div className="space-y-4">
                       {consentRequests.filter(req => req.abhaId === abhaId && req.status === 'Pending').map((req) => (
-                        <div key={req.id} className="border p-4 rounded-xl bg-card relative text-left flex flex-col justify-between gap-4">
+                        <div key={req.id} className="border px-4 py-4 rounded-xl bg-card relative text-left flex flex-col justify-between gap-4 scroll-touch-accelerated">
                           <div>
                             <div className="flex justify-between items-start">
                               <h3 className="font-bold text-xs text-foreground">HIU Facility: {req.facility}</h3>
@@ -1215,13 +1412,13 @@ export const PatientDashboard: React.FC = () => {
                           <div className="flex gap-2 border-t pt-3 text-xs">
                             <button
                               onClick={() => denyConsentRequest(req.id)}
-                              className="flex-1 py-1.5 border border-destructive/20 text-destructive hover:bg-destructive/5 font-bold rounded-lg cursor-pointer"
+                              className="flex-1 py-3 min-h-[48px] border border-destructive/20 text-destructive hover:bg-destructive/5 font-bold rounded-xl cursor-pointer flex items-center justify-center"
                             >
                               Deny Access
                             </button>
                             <button
                               onClick={() => approveConsentRequest(req.id)}
-                              className="flex-1 py-1.5 bg-gradient-medical text-white font-bold rounded-lg shadow-medical hover:opacity-95 cursor-pointer"
+                              className="flex-1 py-3 min-h-[48px] bg-gradient-medical text-white font-bold rounded-xl shadow-medical hover:opacity-95 cursor-pointer flex items-center justify-center"
                             >
                               Approve Access
                             </button>
@@ -1233,7 +1430,7 @@ export const PatientDashboard: React.FC = () => {
                 </div>
 
                 {/* ABDM Consent Manager */}
-                <div className="bg-card border rounded-2xl p-6 shadow-medical">
+                <div className="bg-card border rounded-2xl px-4 py-4 md:p-6 shadow-medical">
                   <h2 className="text-lg font-bold flex items-center gap-2 mb-4">
                     <Lock className="w-5 h-5 text-primary" />
                     ABDM Patient Consent Manager Console
@@ -1277,7 +1474,7 @@ export const PatientDashboard: React.FC = () => {
                                 payload: fhirConsentJson
                               });
                             }}
-                            className="px-2.5 py-1 text-[10px] font-bold border border-primary/20 text-primary hover:bg-primary/5 rounded-lg flex items-center gap-1"
+                            className="px-3 py-2 text-[10px] font-bold border border-primary/20 text-primary hover:bg-primary/5 rounded-xl flex items-center gap-1 min-h-[48px] justify-center cursor-pointer"
                           >
                             <FileCode className="w-3.5 h-3.5" />
                             <span>FHIR JSON</span>
@@ -1290,7 +1487,7 @@ export const PatientDashboard: React.FC = () => {
                               const fhirConsentJson = generateFhirConsent(rec.facility, rec.id, nextStatus);
                               addFhirLog(`ABDM Consent for ${rec.facility} status set to ${nextStatus}`, 'payload', fhirConsentJson);
                             }}
-                            className={`px-3 py-1 text-xs font-semibold rounded-lg border transition-all ${
+                            className={`px-4 py-2 text-xs font-bold rounded-xl border transition-all min-h-[48px] flex items-center justify-center cursor-pointer ${
                               rec.status === 'Active'
                                 ? 'text-destructive hover:bg-destructive/10 border-destructive/20'
                                 : 'text-primary hover:bg-primary/10 border-primary/20'
@@ -1897,11 +2094,43 @@ export const PatientDashboard: React.FC = () => {
                   />
                 </div>
 
-                {/* Simulated File Selection */}
-                <div className="border border-dashed border-border p-4 rounded-xl text-center bg-muted/10 cursor-pointer hover:bg-muted/20 transition-all">
-                  <Upload className="w-6 h-6 text-muted-foreground mx-auto mb-1 animate-pulse" />
-                  <span className="text-[10px] text-primary font-bold">Select PDF or Scanned JPEG</span>
-                  <span className="text-[8px] text-muted-foreground block mt-0.5">Maximum size: 10MB</span>
+                {/* Real File Selection with Image Preview */}
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold text-muted-foreground block uppercase">Select Record File (PDF, JPG, PNG) *</label>
+                  <label className="border border-dashed border-border p-4 rounded-xl text-center bg-muted/10 cursor-pointer hover:bg-muted/20 transition-all flex flex-col items-center justify-center min-h-[90px]">
+                    <input
+                      type="file"
+                      accept="image/*,application/pdf"
+                      className="hidden"
+                      onChange={(e) => {
+                        if (e.target.files && e.target.files[0]) {
+                          const file = e.target.files[0];
+                          setSelectedFile(file);
+                          if (file.type.startsWith('image/')) {
+                            setFilePreviewUrl(URL.createObjectURL(file));
+                          } else {
+                            setFilePreviewUrl(null);
+                          }
+                        }
+                      }}
+                      required
+                    />
+                    <Upload className="w-5 h-5 text-primary mb-1 animate-pulse" />
+                    {selectedFile ? (
+                      <div className="space-y-1 text-center">
+                        <span className="text-[10px] text-foreground font-extrabold break-all">{selectedFile.name}</span>
+                        <span className="text-[8px] text-muted-foreground block">{(selectedFile.size / (1024 * 1024)).toFixed(2)} MB</span>
+                        {filePreviewUrl && (
+                          <img src={filePreviewUrl} alt="Preview" className="w-10 h-10 object-cover mx-auto rounded border border-border mt-1" />
+                        )}
+                      </div>
+                    ) : (
+                      <>
+                        <span className="text-[10px] text-primary font-bold">Select PDF, JPEG, or PNG</span>
+                        <span className="text-[8px] text-muted-foreground mt-0.5">Maximum size: 10MB</span>
+                      </>
+                    )}
+                  </label>
                 </div>
 
                 <button

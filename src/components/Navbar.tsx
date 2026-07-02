@@ -35,15 +35,21 @@ export const Navbar: React.FC = () => {
     navigate('/');
   };
 
-  const dashboardRoute = (user?.userType === 'doctor' || user?.userType === 'hospital') ? '/doctor-dashboard' : '/dashboard';
+  const dashboardRoute = user?.userType === 'doctor' 
+    ? '/doctor-dashboard' 
+    : user?.userType === 'hospital' 
+      ? '/hospital-dashboard' 
+      : '/dashboard';
 
   const handleRoleSwitch = (newRole: 'patient' | 'doctor' | 'hospital') => {
-    switchUserRole(newRole);
-    if (newRole === 'doctor' || newRole === 'hospital') {
-      navigate('/doctor-dashboard');
-    } else {
-      navigate('/dashboard');
-    }
+    // Strict Handoff Security Guard: Force logout and prompt credentials validation
+    logout();
+    setMobileMenuOpen(false);
+    navigate('/login', { 
+      state: { 
+        message: "Unauthorized Access. You must register or log in with a verified account to view this dashboard" 
+      } 
+    });
   };
 
   const menuItems = [

@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
-import { useNavigate as useNav } from 'react-router-dom';
+import { useNavigate as useNav, useLocation } from 'react-router-dom';
 import { useAppContext } from '../context/AppContext';
 import { LogIn, UserPlus, Shield, User, Landmark, Mail, Lock, Sparkles } from 'lucide-react';
 
 export const Login: React.FC = () => {
   const navigate = useNav();
+  const location = useLocation();
   const { login, signup, resetPassword, addFhirLog } = useAppContext();
   
   const [isLogin, setIsLogin] = useState(true);
@@ -23,7 +24,7 @@ export const Login: React.FC = () => {
   const [hospitalAddress, setHospitalAddress] = useState('');
   const [hospitalPhone, setHospitalPhone] = useState('');
   
-  const [errorMsg, setErrorMsg] = useState('');
+  const [errorMsg, setErrorMsg] = useState(location.state?.message || '');
   const [loading, setLoading] = useState(false);
 
   // Forgot password flow states
@@ -91,6 +92,8 @@ export const Login: React.FC = () => {
         // Success Redirects
         if (role === 'doctor') {
           navigate('/doctor-dashboard');
+        } else if (role === 'hospital') {
+          navigate('/hospital-dashboard');
         } else {
           navigate('/dashboard');
         }

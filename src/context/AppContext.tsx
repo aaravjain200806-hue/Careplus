@@ -112,7 +112,15 @@ export interface Medicine {
   };
 }
 
-export interface MedicineReminder {
+export interface Prescription {
+  daysOfWeek: string[] | string;
+  durationDays: number;
+  intervalHours: number;
+  lastTakenTime: string | null;
+  startDate: string;
+}
+
+export interface MedicineReminder extends Prescription {
   id: string;
   user_id?: string;
   medicineId: number | string;
@@ -121,6 +129,7 @@ export interface MedicineReminder {
   time: string;
   last_taken_at?: string;
   stock_quantity: number;
+  stock?: number;
 }
 
 export interface Appointment {
@@ -155,8 +164,15 @@ interface AppContextProps {
   logout: () => void;
   registerHospital: (hospital: Omit<Hospital, 'id' | 'lat' | 'lng' | 'verified'>) => void;
   registerMedicalStore: (store: Omit<MedicalStore, 'id'>) => void;
-  addReminder: (reminder: Omit<MedicineReminder, 'id' | 'last_taken_at'>) => void;
+  addReminder: (reminder: Omit<MedicineReminder, 'id' | 'last_taken_at' | 'daysOfWeek' | 'durationDays' | 'intervalHours' | 'lastTakenTime' | 'startDate'> & {
+    daysOfWeek?: string[] | string;
+    durationDays?: number;
+    intervalHours?: number;
+    lastTakenTime?: string | null;
+    startDate?: string;
+  }) => void;
   takeMedicine: (reminderId: string) => void;
+  markAsTaken: (reminderId: string) => void;
   deleteReminder: (reminderId: string) => void;
   bookAppointment: (doctorId: number | string, doctorName: string, specialty: string, date: string, time: string) => void;
   updateAppointmentStatus: (id: string, status: 'scheduled' | 'completed' | 'cancelled') => void;
@@ -735,7 +751,57 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const [reminders, setReminders] = useState<MedicineReminder[]>(() => {
     const saved = secureStorage.getItem('care_reminders');
-    return saved ? JSON.parse(saved) : [];
+    if (saved) return JSON.parse(saved);
+    
+    // Default reminders designed to test days of week and interval lockout guards
+    const nowTime = Date.now();
+    return [
+      {
+        id: "rem-1",
+        user_id: "aaravomen@gmail.com",
+        medicineId: 1,
+        name: "Paracetamol 500mg",
+        dosage: "1 Tablet",
+        time: "08:00 AM",
+        stock_quantity: 12,
+        stock: 12,
+        daysOfWeek: ["Everyday"],
+        durationDays: 5,
+        intervalHours: 12,
+        lastTakenTime: new Date(nowTime - 13 * 3600 * 1000).toISOString(), // 13 hours ago (due/overdue)
+        startDate: new Date(nowTime - 2 * 24 * 3600 * 1000).toISOString()
+      },
+      {
+        id: "rem-2",
+        user_id: "aaravomen@gmail.com",
+        medicineId: 4,
+        name: "Metformin 500mg",
+        dosage: "1 Tablet",
+        time: "09:00 AM",
+        stock_quantity: 8,
+        stock: 8,
+        daysOfWeek: ["Monday", "Wednesday", "Friday"], // today is Thursday, not scheduled
+        durationDays: 30,
+        intervalHours: 24,
+        lastTakenTime: new Date(nowTime - 4 * 3600 * 1000).toISOString(),
+        startDate: new Date(nowTime - 5 * 24 * 3600 * 1000).toISOString()
+      },
+      {
+        id: "rem-3",
+        user_id: "aaravomen@gmail.com",
+        medicineId: 3,
+        name: "Cetirizine 10mg",
+        dosage: "1 Tablet",
+        time: "10:00 PM",
+        stock_quantity: 15,
+        stock: 15,
+        daysOfWeek: ["Thursday", "Saturday"], // scheduled today (Thursday), taken 4 hrs ago (locked out)
+        durationDays: 10,
+        intervalHours: 24,
+        lastTakenTime: new Date(nowTime - 4 * 3600 * 1000).toISOString(),
+        startDate: new Date(nowTime - 1 * 24 * 3600 * 1000).toISOString()
+      }
+    ];
   });
 
   const [appointments, setAppointments] = useState<Appointment[]>(() => {
@@ -1281,8 +1347,18 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       throw new Error("A user with this email or username already exists.");
     }
     
+    // Generate unique 14-digit ABHA ID for patient users (91-XXXX-XXXX-XXXX)
+    let generatedAbha = '';
+    if (userData.userType === 'patient') {
+      const p1 = Math.floor(1000 + Math.random() * 9000).toString();
+      const p2 = Math.floor(1000 + Math.random() * 9000).toString();
+      const p3 = Math.floor(1000 + Math.random() * 9000).toString();
+      generatedAbha = `91-${p1}-${p2}-${p3}`;
+    }
+
     const newUser = {
       ...userData,
+      abhaNumber: userData.userType === 'patient' ? (userData.abhaNumber || generatedAbha) : undefined,
       name: userData.fullname, // ensure backward compatibility
       // Set defaults for doctors
       fees: userData.userType === 'doctor' ? 500 : undefined,
@@ -1314,23 +1390,17 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
     
     if (newUser.userType === 'patient') {
-      if (newUser.abhaNumber) {
-        setAbhaId(newUser.abhaNumber);
-        secureStorage.setItem('care_abha_id', newUser.abhaNumber);
-        
-        const normalize = (id: string) => id.replace(/[\s-]/g, "");
-        const abhaExists = abhaRegistry.some(r => normalize(r.abhaId) === normalize(newUser.abhaNumber || ''));
-        if (!abhaExists && newUser.abhaNumber) {
-          const address = `${newUser.username}@abdm`;
-          setAbhaAddress(address);
-          secureStorage.setItem('care_abha_address', address);
-          setAbhaRegistry(prev => [...prev, { abhaId: newUser.abhaNumber!, name: newUser.fullname, address }]);
-        }
-      } else {
-        setAbhaId("");
-        setAbhaAddress("");
-        secureStorage.removeItem('care_abha_id');
-        secureStorage.removeItem('care_abha_address');
+      const finalAbha = newUser.abhaNumber || generatedAbha;
+      setAbhaId(finalAbha);
+      secureStorage.setItem('care_abha_id', finalAbha);
+      
+      const normalize = (id: string) => id.replace(/[\s-]/g, "");
+      const abhaExists = abhaRegistry.some(r => normalize(r.abhaId) === normalize(finalAbha));
+      const address = `${newUser.username}@abdm`;
+      setAbhaAddress(address);
+      secureStorage.setItem('care_abha_address', address);
+      if (!abhaExists) {
+        setAbhaRegistry(prev => [...prev, { abhaId: finalAbha, name: newUser.fullname, address }]);
       }
     } else {
       setAbhaId("");
@@ -1489,11 +1559,18 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   // Medicine Reminders Operations
-  const addReminder = (reminder: Omit<MedicineReminder, 'id' | 'last_taken_at'>) => {
+  const addReminder = (reminder: any) => {
     const newReminder: MedicineReminder = {
+      daysOfWeek: ["Everyday"],
+      durationDays: 30,
+      intervalHours: 24,
+      lastTakenTime: null,
+      startDate: new Date().toISOString(),
       ...reminder,
       id: Date.now().toString(),
-      user_id: user?.email || 'guest'
+      user_id: user?.email || 'guest',
+      stock_quantity: reminder.stock_quantity ?? 10,
+      stock: reminder.stock_quantity ?? 10
     };
     setReminders(prev => [newReminder, ...prev]);
   };
@@ -1501,14 +1578,42 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const takeMedicine = (reminderId: string) => {
     setReminders(prev => prev.map(reminder => {
       if (reminder.id === reminderId) {
+        const timestamp = new Date().toISOString();
+        const nextStock = Math.max(0, reminder.stock_quantity - 1);
+        
+        // Push FHIR log to console
+        addFhirLog(
+          `Patient took medicine: ${reminder.name} at ${timestamp}`,
+          'success',
+          JSON.stringify({
+            resourceType: "MedicationAdministration",
+            id: `medadm-${reminder.id}`,
+            status: "completed",
+            medicationReference: {
+              display: reminder.name
+            },
+            subject: {
+              reference: `Patient/${user?.abhaNumber || 'guest'}`
+            },
+            effectiveDateTime: timestamp,
+            note: [{ text: `Dose marked as taken. Stock remaining: ${nextStock}` }]
+          }, null, 2)
+        );
+
         return {
           ...reminder,
-          last_taken_at: new Date().toISOString(),
-          stock_quantity: Math.max(0, reminder.stock_quantity - 1)
+          last_taken_at: timestamp,
+          lastTakenTime: timestamp,
+          stock_quantity: nextStock,
+          stock: nextStock
         };
       }
       return reminder;
     }));
+  };
+
+  const markAsTaken = (reminderId: string) => {
+    takeMedicine(reminderId);
   };
 
   const deleteReminder = (reminderId: string) => {
@@ -1638,7 +1743,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     <AppContext.Provider value={{
       user, hospitals, medicalStores, medicines, reminders, appointments, cart, doctors,
       login, signup, logout, registerHospital, registerMedicalStore,
-      addReminder, takeMedicine, deleteReminder, bookAppointment, updateAppointmentStatus,
+      addReminder, takeMedicine, markAsTaken, deleteReminder, bookAppointment, updateAppointmentStatus,
       addToCart, removeFromCart, updateCartQuantity, clearCart,
       
       // ABDM Sovereign Compliance State

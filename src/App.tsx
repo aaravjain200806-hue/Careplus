@@ -1,7 +1,7 @@
 import React from 'react';
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { LanguageProvider } from './context/LanguageContext';
-import { AppProvider } from './context/AppContext';
+import { AppProvider, useAppContext } from './context/AppContext';
 
 // Import Components
 import Navbar from './components/Navbar';
@@ -22,6 +22,45 @@ import Chat from './pages/Chat';
 import TestBookingPage from './pages/TestBooking';
 import NotFound from './pages/NotFound';
 
+// Authorization Guard Component (RBAC Compliance)
+interface GuardProps {
+  children: React.ReactNode;
+  allowedRoles: ('patient' | 'doctor' | 'hospital')[];
+}
+
+const RoleGuard: React.FC<GuardProps> = ({ children, allowedRoles }) => {
+  const { user } = useAppContext();
+  const location = useLocation();
+
+  if (!user) {
+    return (
+      <Navigate 
+        to="/login" 
+        state={{ 
+          from: location, 
+          message: "Unauthorized Access. You must register or log in with a verified account to view this dashboard" 
+        }} 
+        replace 
+      />
+    );
+  }
+
+  if (!allowedRoles.includes(user.userType)) {
+    return (
+      <Navigate 
+        to="/login" 
+        state={{ 
+          from: location, 
+          message: "Unauthorized Access. You must register or log in with a verified account to view this dashboard" 
+        }} 
+        replace 
+      />
+    );
+  }
+
+  return <>{children}</>;
+};
+
 export const App: React.FC = () => {
   return (
     <LanguageProvider>
@@ -36,8 +75,30 @@ export const App: React.FC = () => {
               <Routes>
                 <Route path="/" element={<Home />} />
                 <Route path="/login" element={<Login />} />
-                <Route path="/dashboard" element={<PatientDashboard />} />
-                <Route path="/doctor-dashboard" element={<DoctorDashboard />} />
+                <Route 
+                  path="/dashboard" 
+                  element={
+                    <RoleGuard allowedRoles={['patient']}>
+                      <PatientDashboard />
+                    </RoleGuard>
+                  } 
+                />
+                <Route 
+                  path="/doctor-dashboard" 
+                  element={
+                    <RoleGuard allowedRoles={['doctor']}>
+                      <DoctorDashboard />
+                    </RoleGuard>
+                  } 
+                />
+                <Route 
+                  path="/hospital-dashboard" 
+                  element={
+                    <RoleGuard allowedRoles={['hospital']}>
+                      <DoctorDashboard />
+                    </RoleGuard>
+                  } 
+                />
                 <Route path="/appointments" element={<Appointments />} />
                 <Route path="/doctor/:doctorId" element={<Appointments />} /> {/* Dynamic booking redirect */}
                 <Route path="/medicines" element={<Medicines />} />

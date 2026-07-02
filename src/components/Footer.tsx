@@ -1,6 +1,5 @@
 import React from 'react';
 import { useLanguage } from '../context/LanguageContext';
-import { Heart } from 'lucide-react';
 import logoMark from '../assets/logo_mark.png';
 
 export const Footer: React.FC = () => {
@@ -18,7 +17,7 @@ export const Footer: React.FC = () => {
           </div>
           
           <p className="text-sm text-muted-foreground flex items-center gap-1.5">
-            © {new Date().getFullYear()} CarePlus Healthcare. Made with <Heart className="w-3.5 h-3.5 fill-destructive text-destructive" /> by Team HackDynasty.
+            © 2026 CarePlus Healthcare. All rights reserved.
           </p>
         </div>
       </div>
